@@ -1,36 +1,123 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Ghost Market MVP
 
-## Getting Started
+Premium Apple-style MVP for an exclusive ghost-produced music marketplace.
 
-First, run the development server:
+Built with:
+- Next.js App Router
+- TypeScript
+- Tailwind CSS
+- Framer Motion
+- Supabase-ready architecture
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## What this MVP includes
+- Premium landing page
+- Browse tracks with search/filter/sort
+- Track details with metadata, file bundle, rights messaging
+- Favorites (client-persisted)
+- Buyer dashboard
+- Producer dashboard
+- Upload track flow (mocked file handling UI)
+- Custom services page + request form
+- Checkout simulation + success/download state
+- Auth pages + role selection
+- Admin placeholder structure
+- Empty/loading/404 states
+
+## Demo roles
+- Buyer
+- Producer
+- Admin
+
+Role is selected in-app and persisted in local storage for demo behavior.
+
+## Project structure
+```text
+src/
+  app/
+    api/
+    admin/
+    auth/
+    checkout/[trackId]/
+    dashboard/
+    favorites/
+    services/
+    tracks/
+    upload/
+    layout.tsx
+    page.tsx
+    not-found.tsx
+    loading.tsx
+  components/
+    checkout/
+    dashboards/
+    forms/
+    layout/
+    providers/
+    shared/
+    tracks/
+    ui/
+  data/
+    seed.ts
+    queries.ts
+  lib/
+    constants.ts
+    utils.ts
+    supabase/
+  types/
+    domain.ts
+supabase/
+  schema.sql
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Data + seed strategy
+- Seed data is in `src/data/seed.ts`.
+- Query/helpers are in `src/data/queries.ts`.
+- UI consumes typed local data for fast MVP iteration.
+- Replace helper internals with Supabase queries when moving from mocked to real backend.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## What is mocked vs real
+Real in MVP:
+- UI/UX flows and route architecture
+- Track browsing/filtering/searching/sorting
+- Favorites persistence (local storage)
+- Role-based dashboard routing structure
+- Form submission UX with toasts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Mocked in MVP:
+- Payment processing (Stripe-ready placeholder)
+- File uploads/download delivery (simulated)
+- Auth persistence/session (demo mode)
+- API handlers return mock success payloads
 
-## Learn More
+## Supabase setup
+1. Create Supabase project.
+2. Run `supabase/schema.sql` in SQL editor.
+3. Fill `.env.local` from `.env.example`.
+4. Replace local seed repositories with Supabase calls incrementally.
 
-To learn more about Next.js, take a look at the following resources:
+## Local development
+```bash
+npm install
+npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Open `http://localhost:3000`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Build + lint
+```bash
+npm run lint
+npm run build
+```
 
-## Deploy on Vercel
+## Deploy to Vercel
+1. Push repository to GitHub.
+2. Import repo in Vercel.
+3. Set env vars from `.env.example`.
+4. Deploy.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Suggested post-MVP upgrades
+1. Supabase Auth with protected dashboards.
+2. Real audio preview streaming + waveform.
+3. Stripe checkout + webhook order finalization.
+4. Supabase Storage for artwork/audio/packages.
+5. Signed download URLs + legal rights-transfer PDF generation.
