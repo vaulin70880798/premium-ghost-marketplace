@@ -46,7 +46,7 @@ export function TrackDetailClient({
             </div>
           </div>
 
-          <AudioPreview trackId={track.id} duration={track.durationSeconds} variant="full" />
+          <AudioPreview previewUrl={track.previewUrl} duration={track.durationSeconds} variant="full" />
 
           <p className="text-sm leading-relaxed text-zinc-600">{track.description}</p>
 

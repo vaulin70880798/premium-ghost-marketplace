@@ -144,7 +144,7 @@ function track(
       "A release-ready ghost production with premium mixdown, arrangement details, and full ownership transfer after purchase.",
     price,
     artworkUrl: `/artworks/${id}.jpg`,
-    previewUrl: `/previews/${id}.mp3`,
+    previewUrl: `/previews/${id}.wav`,
     hasStems: options?.hasStems ?? true,
     hasMidi: options?.hasMidi ?? true,
     hasMaster: options?.hasMaster ?? true,

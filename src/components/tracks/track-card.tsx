@@ -63,7 +63,7 @@ export function TrackCard({ track, producerName, mode = "grid" }: TrackCardProps
           {track.hasStems ? <Badge>Stems</Badge> : null}
         </div>
 
-        <AudioPreview trackId={track.id} duration={track.durationSeconds} />
+        <AudioPreview previewUrl={track.previewUrl} duration={track.durationSeconds} />
 
         <div className="flex items-center gap-2">
           <Button asChild className="flex-1">
