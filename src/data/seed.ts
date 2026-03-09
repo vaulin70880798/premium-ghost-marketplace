@@ -103,6 +103,16 @@ export const producers: Producer[] = [
   },
 ];
 
+const cc0PreviewFiles = [
+  "/previews/1.mp3",
+  "/previews/2.mp3",
+  "/previews/3.mp3",
+  "/previews/4.mp3",
+  "/previews/5.mp3",
+  "/previews/6.mp3",
+  "/previews/7.mp3",
+];
+
 function track(
   id: number,
   title: string,
@@ -144,7 +154,7 @@ function track(
       "A release-ready ghost production with premium mixdown, arrangement details, and full ownership transfer after purchase.",
     price,
     artworkUrl: `/artworks/${id}.jpg`,
-    previewUrl: `/previews/${id}.wav`,
+    previewUrl: cc0PreviewFiles[(id - 1) % cc0PreviewFiles.length],
     hasStems: options?.hasStems ?? true,
     hasMidi: options?.hasMidi ?? true,
     hasMaster: options?.hasMaster ?? true,

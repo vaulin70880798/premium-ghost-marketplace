@@ -13,6 +13,7 @@ Built with:
 - Premium landing page
 - Browse tracks with search/filter/sort
 - Track details with metadata, file bundle, rights messaging
+- Real browser audio playback for preview tracks
 - Favorites (client-persisted)
 - Buyer dashboard
 - Producer dashboard
@@ -74,11 +75,13 @@ supabase/
 - Query/helpers are in `src/data/queries.ts`.
 - UI consumes typed local data for fast MVP iteration.
 - Replace helper internals with Supabase queries when moving from mocked to real backend.
+- Preview audio files are in `public/previews` and license metadata is in `public/previews/LICENSES.md`.
 
 ## What is mocked vs real
 Real in MVP:
 - UI/UX flows and route architecture
 - Track browsing/filtering/searching/sorting
+- Real preview audio playback from legal CC0 demo tracks
 - Favorites persistence (local storage)
 - Role-based dashboard routing structure
 - Form submission UX with toasts
