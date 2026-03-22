@@ -17,12 +17,13 @@ Built with:
 - Favorites (client-persisted)
 - Buyer dashboard
 - Producer dashboard
-- Upload track flow (mocked file handling UI)
+- Upload track flow (admin-only for this phase)
 - Custom services page + request form
 - Checkout simulation + success/download state
 - Auth pages with Email/Password + Google OAuth
 - Strict role-based route access (buyer/producer/admin)
 - Admin onboarding form for producer account creation
+- Admin track management panel (add/delete/publish/sold state + preview/package download links)
 - Empty/loading/404 states
 
 ## Roles
@@ -96,12 +97,14 @@ Real in MVP:
 - Google OAuth sign-in flow (when configured in Supabase)
 - Server-side role guards for buyer/producer/admin routes
 - Form submission UX with toasts
+- Admin-only upload route (`/upload`)
+- Admin track CRUD API (`/api/admin/tracks`)
 
 Mocked in MVP:
 - Payment processing (PayPal/Stripe not connected yet)
 - File uploads/download delivery (simulated)
 - Favorites backend sync (still local storage)
-- API handlers return mock success payloads
+- Checkout is visual simulation only (no real charge/capture)
 
 ## Supabase setup
 1. Create Supabase project.

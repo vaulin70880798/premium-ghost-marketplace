@@ -6,14 +6,14 @@ import { Badge } from "@/components/ui/badge";
 import { requireRole } from "@/lib/auth/server";
 
 export default async function UploadPage() {
-  await requireRole(["producer", "admin"]);
+  await requireRole(["admin"]);
 
   return (
     <div className="mx-auto max-w-5xl space-y-8">
       <SectionHeading
-        eyebrow="Producer Studio"
+        eyebrow="Admin Catalog Studio"
         title="Upload New Exclusive Track"
-        description="Structured submission flow with metadata, file package declaration, and moderation-ready terms."
+        description="Admin-only catalog submission flow with metadata, package declaration, and moderation-ready terms."
       />
 
       <div className="flex flex-wrap gap-2">
@@ -25,7 +25,11 @@ export default async function UploadPage() {
       <UploadTrackForm />
 
       <p className="text-xs text-zinc-500">
-        Need custom producer onboarding? Continue to <Link href="/services" className="underline">custom services</Link>.
+        Need custom producer onboarding? Continue to{" "}
+        <Link href="/services" className="underline">
+          custom services
+        </Link>
+        .
       </p>
     </div>
   );

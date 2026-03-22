@@ -15,6 +15,7 @@ interface ProducerDashboardProps {
   sold: number;
   avgResponse: string;
   pendingOrders: number;
+  canUpload: boolean;
 }
 
 export function ProducerDashboard({
@@ -26,6 +27,7 @@ export function ProducerDashboard({
   sold,
   avgResponse,
   pendingOrders,
+  canUpload,
 }: ProducerDashboardProps) {
   return (
     <div className="space-y-8">
@@ -36,12 +38,16 @@ export function ProducerDashboard({
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-zinc-950">Studio Workspace · {producerName}</h1>
             <p className="mt-2 text-sm text-zinc-600">Manage catalog, orders, and earnings in one place.</p>
           </div>
-          <Button asChild>
-            <Link href="/upload">
-              <UploadCloud className="mr-2 h-4 w-4" />
-              Upload Track
-            </Link>
-          </Button>
+          {canUpload ? (
+            <Button asChild>
+              <Link href="/upload">
+                <UploadCloud className="mr-2 h-4 w-4" />
+                Upload Track
+              </Link>
+            </Button>
+          ) : (
+            <Badge className="bg-zinc-100 text-zinc-700">Track uploads are managed by admin.</Badge>
+          )}
         </div>
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

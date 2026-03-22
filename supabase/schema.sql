@@ -59,6 +59,7 @@ create table if not exists tracks (
   price integer not null,
   artwork_url text,
   preview_url text,
+  package_url text,
   has_stems boolean not null default true,
   has_midi boolean not null default true,
   has_master boolean not null default true,

@@ -18,11 +18,11 @@ export function Footer() {
             <Link href="/services" className="hover:text-zinc-900">
               Custom Services
             </Link>
-            <Link href="/upload" className="hover:text-zinc-900">
-              Producer Upload
+            <Link href="/favorites" className="hover:text-zinc-900">
+              Favorites
             </Link>
-            <Link href="/admin" className="hover:text-zinc-900">
-              Admin
+            <Link href="/auth/sign-in" className="hover:text-zinc-900">
+              Sign In
             </Link>
           </div>
         </div>
