@@ -15,8 +15,10 @@ import { cn } from "@/lib/utils";
 export function Header() {
   const pathname = usePathname();
   const router = useRouter();
-  const { favorites, role, isAuthenticated, signOut, authEmail } = useAppState();
+  const { favorites, role, isAuthenticated, authReady, signOut, authEmail } = useAppState();
   const [isOpen, setIsOpen] = useState(false);
+  const dashboardLabel =
+    role === "buyer" ? "Buyer Dashboard" : role === "producer" ? "Producer Dashboard" : "Admin Dashboard";
 
   return (
     <header className="sticky top-0 z-40 border-b border-zinc-200/70 bg-white/80 backdrop-blur-xl">
@@ -55,7 +57,7 @@ export function Header() {
             <span>{favorites.length}</span>
           </Link>
           <Link href="/dashboard" className={buttonVariants({ variant: "outline", size: "sm" })}>
-            {role === "buyer" ? "Buyer Dashboard" : role === "producer" ? "Producer Dashboard" : "Admin Dashboard"}
+            {authReady ? dashboardLabel : "Dashboard"}
           </Link>
           {isAuthenticated ? (
             <Button

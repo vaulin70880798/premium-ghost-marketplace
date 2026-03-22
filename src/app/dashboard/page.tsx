@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 
-import { DashboardHub } from "@/components/dashboards/dashboard-hub";
 import { getAuthState } from "@/lib/auth/server";
 
 export default async function DashboardHubPage() {
@@ -10,19 +9,17 @@ export default async function DashboardHubPage() {
     redirect("/auth/sign-in");
   }
 
-  if (auth.isConfigured && auth.user) {
-    if (auth.role === "buyer") {
-      redirect("/dashboard/buyer");
-    }
-
-    if (auth.role === "producer") {
-      redirect("/dashboard/producer");
-    }
-
-    if (auth.role === "admin") {
-      redirect("/admin");
-    }
+  if (auth.role === "buyer") {
+    redirect("/dashboard/buyer");
   }
 
-  return <DashboardHub />;
+  if (auth.role === "producer") {
+    redirect("/dashboard/producer");
+  }
+
+  if (auth.role === "admin") {
+    redirect("/admin");
+  }
+
+  redirect("/dashboard/buyer");
 }

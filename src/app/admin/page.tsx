@@ -1,3 +1,4 @@
+import { CreateProducerForm } from "@/components/admin/create-producer-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth/server";
@@ -41,12 +42,14 @@ export default async function AdminPage() {
   return (
     <div className="space-y-8">
       <section className="rounded-3xl border border-zinc-200 bg-white p-7 shadow-[0_24px_70px_rgba(12,20,38,0.08)]">
-        <Badge>Admin Placeholder Structure</Badge>
+        <Badge>Admin Control</Badge>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-zinc-950">Platform Control Room</h1>
         <p className="mt-2 text-sm text-zinc-600">
-          MVP admin surface for future Supabase-backed moderation and operations tooling.
+          Only admins can access this area and onboard producer accounts.
         </p>
       </section>
+
+      <CreateProducerForm />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {modules.map((module) => (

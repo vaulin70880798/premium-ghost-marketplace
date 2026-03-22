@@ -22,7 +22,7 @@ export default function SignUpPage() {
 
     if (!hasSupabaseEnv()) {
       toast.info("Supabase is not configured yet. Running demo mode.");
-      router.push("/auth/role");
+      router.push("/dashboard");
       return;
     }
 
@@ -51,15 +51,18 @@ export default function SignUpPage() {
     }
 
     if (data.user && data.session) {
-      await supabase.from("profiles").upsert({
-        id: data.user.id,
-        email,
-        display_name: displayName,
-        role: "buyer",
-      });
+      await supabase.from("profiles").upsert(
+        {
+          id: data.user.id,
+          email,
+          display_name: displayName,
+          role: "buyer",
+        },
+        { onConflict: "id" },
+      );
       setIsSubmitting(false);
-      toast.success("Account created");
-      router.push("/auth/role");
+      toast.success("Buyer account created");
+      router.push("/dashboard");
       router.refresh();
       return;
     }
@@ -71,9 +74,12 @@ export default function SignUpPage() {
 
   return (
     <div className="mx-auto max-w-md">
-      <form onSubmit={onSubmit} className="space-y-4 rounded-3xl border border-zinc-200 bg-white p-7 shadow-[0_24px_70px_rgba(12,20,38,0.08)]">
-        <h1 className="text-3xl font-semibold tracking-tight text-zinc-950">Create Account</h1>
-        <p className="text-sm text-zinc-600">Start buying tracks or publishing as a producer.</p>
+      <form
+        onSubmit={onSubmit}
+        className="space-y-4 rounded-3xl border border-zinc-200 bg-white p-7 shadow-[0_24px_70px_rgba(12,20,38,0.08)]"
+      >
+        <h1 className="text-3xl font-semibold tracking-tight text-zinc-950">Create Buyer Account</h1>
+        <p className="text-sm text-zinc-600">Producer and admin accounts are created only by admin onboarding.</p>
 
         <label className="space-y-2 text-sm">
           <span className="font-medium text-zinc-700">Name</span>
@@ -102,6 +108,7 @@ export default function SignUpPage() {
             type="password"
             placeholder="••••••••"
             required
+            minLength={8}
             value={password}
             onChange={(event) => setPassword(event.target.value)}
           />

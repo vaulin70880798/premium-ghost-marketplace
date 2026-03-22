@@ -20,16 +20,21 @@ Built with:
 - Upload track flow (mocked file handling UI)
 - Custom services page + request form
 - Checkout simulation + success/download state
-- Auth pages + role selection (Supabase-ready, with real session when env configured)
-- Admin placeholder structure
+- Auth pages with Email/Password + Google OAuth
+- Strict role-based route access (buyer/producer/admin)
+- Admin onboarding form for producer account creation
 - Empty/loading/404 states
 
-## Demo roles
+## Roles
 - Buyer
 - Producer
 - Admin
 
-Role is synced from `profiles.role` when Supabase auth is configured.
+Behavior:
+- All public signups are created as `buyer`.
+- Only `admin` can create `producer` accounts.
+- Admin area is visible only to admin users.
+- Admin login can require an extra private code (`ADMIN_ACCESS_CODE`).
 
 ## Project structure
 ```text
@@ -84,6 +89,7 @@ Real in MVP:
 - Real preview audio playback from legal CC0 demo tracks
 - Favorites persistence (local storage)
 - Supabase Auth sign-in/sign-up flows (when env is configured)
+- Google OAuth sign-in flow (when configured in Supabase)
 - Server-side role guards for buyer/producer/admin routes
 - Form submission UX with toasts
 
@@ -96,9 +102,18 @@ Mocked in MVP:
 ## Supabase setup
 1. Create Supabase project.
 2. Enable Email auth in Supabase Authentication.
-3. Run `supabase/schema.sql` in SQL editor.
-4. Fill `.env.local` from `.env.example`.
-5. (Optional) seed tracks into `tracks` table; app falls back to local seed if DB is empty/unconfigured.
+3. Enable Google provider in Supabase Authentication:
+   - Add Google OAuth client ID/secret in Supabase.
+   - Add redirect URL: `<your-site>/auth/callback`.
+4. Run `supabase/schema.sql` in SQL editor.
+5. Fill `.env.local` from `.env.example`:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY` (server only)
+   - `ADMIN_ACCESS_CODE` (server only)
+6. Create one admin user:
+   - Sign up normally first, then update `profiles.role = 'admin'` manually in Supabase SQL once.
+7. (Optional) seed tracks into `tracks` table; app falls back to local seed if DB is empty/unconfigured.
 
 ## Local development
 ```bash

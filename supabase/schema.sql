@@ -181,7 +181,10 @@ using (true);
 
 create policy "Users can insert their own profile"
 on profiles for insert
-with check (id = auth.uid());
+with check (
+  id = auth.uid()
+  and role = 'buyer'
+);
 
 create policy "Users can update their own profile"
 on profiles for update
@@ -396,8 +399,33 @@ begin
 end;
 $$;
 
+create or replace function public.prevent_role_escalation()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if public.is_admin() then
+    return new;
+  end if;
+
+  if new.role <> old.role then
+    raise exception 'Role changes are restricted to admin.';
+  end if;
+
+  return new;
+end;
+$$;
+
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
 after insert on auth.users
 for each row
 execute procedure public.handle_new_user();
+
+drop trigger if exists before_profile_update_prevent_role_escalation on public.profiles;
+create trigger before_profile_update_prevent_role_escalation
+before update on public.profiles
+for each row
+execute procedure public.prevent_role_escalation();

@@ -152,6 +152,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         if (supabase) {
           await supabase.auth.signOut();
         }
+        setAuthUser(null);
         setRole("buyer");
       },
     }),
