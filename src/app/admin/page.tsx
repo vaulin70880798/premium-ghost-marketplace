@@ -4,6 +4,7 @@ import { ManageTeamPanel } from "@/components/admin/manage-team-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth/server";
+import Link from "next/link";
 
 const modules = [
   {
@@ -49,6 +50,11 @@ export default async function AdminPage() {
         <p className="mt-2 text-sm text-zinc-600">
           Only admins can access this area and onboard producer accounts.
         </p>
+        <div className="mt-4">
+          <Button asChild>
+            <Link href="/upload">Open Full Upload Studio</Link>
+          </Button>
+        </div>
       </section>
 
       <CreateProducerForm />

@@ -10,9 +10,9 @@ export const runtime = "nodejs";
 
 const STORAGE_BUCKET = "track-files";
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
-const MAX_PREVIEW_BYTES = 25 * 1024 * 1024;
-const MAX_AUDIO_BYTES = 150 * 1024 * 1024;
-const MAX_ZIP_BYTES = 500 * 1024 * 1024;
+const MAX_PREVIEW_BYTES = 20 * 1024 * 1024;
+const MAX_AUDIO_BYTES = 50 * 1024 * 1024;
+const MAX_ZIP_BYTES = 50 * 1024 * 1024;
 
 const ALLOWED_IMAGE_MIME = new Set(["image/jpeg", "image/png", "image/webp"]);
 const ALLOWED_PREVIEW_MIME = new Set(["audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav"]);
@@ -89,7 +89,7 @@ async function ensureBucket(adminClient: ReturnType<typeof createSupabaseAdminCl
 
   const { error: createError } = await adminClient.storage.createBucket(STORAGE_BUCKET, {
     public: true,
-    fileSizeLimit: MAX_ZIP_BYTES,
+    fileSizeLimit: "50MB",
   });
 
   if (createError && !createError.message.toLowerCase().includes("already exists")) {

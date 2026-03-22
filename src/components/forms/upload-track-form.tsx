@@ -12,11 +12,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 const deliverables = ["WAV", "Stems", "MIDI", "Master", "Unmastered", "Extended Mix", "Radio Edit"];
+const genreOptions = ["Melodic Techno", "Tech House", "Afro House", "Deep House", "Progressive House", "Drum & Bass", "Garage", "Other"];
+const moodOptions = ["Euphoric", "Dark", "Hypnotic", "Atmospheric", "Groovy", "Cinematic", "Emotional"];
+const keyOptions = ["A minor", "B minor", "C minor", "D minor", "E minor", "F minor", "G minor", "F# minor", "C# minor", "D# minor", "A major", "G major"];
 
 const IMAGE_MAX_BYTES = 2 * 1024 * 1024;
-const PREVIEW_MAX_BYTES = 25 * 1024 * 1024;
-const AUDIO_MAX_BYTES = 150 * 1024 * 1024;
-const ZIP_MAX_BYTES = 500 * 1024 * 1024;
+const PREVIEW_MAX_BYTES = 20 * 1024 * 1024;
+const AUDIO_MAX_BYTES = 50 * 1024 * 1024;
+const ZIP_MAX_BYTES = 50 * 1024 * 1024;
 
 type UploadFileState = {
   artworkFile: File | null;
@@ -46,26 +49,6 @@ const initialFiles: UploadFileState = {
 function hasExtension(file: File, extensions: string[]) {
   const extension = file.name.split(".").at(-1)?.toLowerCase() ?? "";
   return extensions.includes(extension);
-}
-
-async function getImageDimensions(file: File) {
-  const objectUrl = URL.createObjectURL(file);
-
-  try {
-    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const element = new Image();
-      element.onload = () => resolve(element);
-      element.onerror = () => reject(new Error("Invalid image file."));
-      element.src = objectUrl;
-    });
-
-    return {
-      width: image.width,
-      height: image.height,
-    };
-  } finally {
-    URL.revokeObjectURL(objectUrl);
-  }
 }
 
 export function UploadTrackForm() {
@@ -166,7 +149,7 @@ export function UploadTrackForm() {
     return null;
   };
 
-  const onFileChange = async (key: keyof UploadFileState, file: File | null) => {
+  const onFileChange = (key: keyof UploadFileState, file: File | null) => {
     if (!file) {
       setFiles((current) => ({ ...current, [key]: null }));
       return;
@@ -182,22 +165,6 @@ export function UploadTrackForm() {
 
       if (genericError) {
         toast.error(genericError);
-        return;
-      }
-
-      try {
-        const { width, height } = await getImageDimensions(file);
-        if (width !== height) {
-          toast.error("Artwork must be square (1:1).");
-          return;
-        }
-
-        if (width < 1200 || height < 1200) {
-          toast.error("Artwork resolution must be at least 1200x1200.");
-          return;
-        }
-      } catch {
-        toast.error("Could not validate artwork dimensions.");
         return;
       }
     }
@@ -399,7 +366,18 @@ export function UploadTrackForm() {
         </Field>
 
         <Field label="Genre" required>
-          <Input required value={genre} onChange={(event) => setGenre(event.target.value)} />
+          <select
+            value={genre}
+            onChange={(event) => setGenre(event.target.value)}
+            className="h-11 w-full rounded-2xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-200"
+            required
+          >
+            {genreOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
         </Field>
 
         <Field label="BPM" required>
@@ -407,11 +385,33 @@ export function UploadTrackForm() {
         </Field>
 
         <Field label="Musical key" required>
-          <Input required value={musicalKey} onChange={(event) => setMusicalKey(event.target.value)} />
+          <select
+            value={musicalKey}
+            onChange={(event) => setMusicalKey(event.target.value)}
+            className="h-11 w-full rounded-2xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-200"
+            required
+          >
+            {keyOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
         </Field>
 
         <Field label="Mood" required>
-          <Input required value={mood} onChange={(event) => setMood(event.target.value)} />
+          <select
+            value={mood}
+            onChange={(event) => setMood(event.target.value)}
+            className="h-11 w-full rounded-2xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-200"
+            required
+          >
+            {moodOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
         </Field>
 
         <Field label="Price (USD)" required>
@@ -459,52 +459,52 @@ export function UploadTrackForm() {
         <UploadDropzone
           title="Artwork"
           required
-          hint="JPG/PNG/WEBP · square · min 1200x1200 · up to 2MB"
+          hint="JPG/PNG/WEBP · up to 2MB"
           file={files.artworkFile}
           accept=".jpg,.jpeg,.png,.webp"
-          onFileChange={(file) => void onFileChange("artworkFile", file)}
+          onFileChange={(file) => onFileChange("artworkFile", file)}
         />
 
         <UploadDropzone
           title="Preview"
           required
-          hint="MP3/WAV · up to 25MB"
+          hint="MP3/WAV · up to 20MB"
           file={files.previewFile}
           accept=".mp3,.wav"
-          onFileChange={(file) => void onFileChange("previewFile", file)}
+          onFileChange={(file) => onFileChange("previewFile", file)}
         />
 
         <UploadDropzone
           title="Main Package ZIP"
           required
-          hint="ZIP bundle with full delivery assets · up to 500MB"
+          hint="ZIP bundle with full delivery assets · up to 50MB"
           file={files.packageZipFile}
           accept=".zip"
-          onFileChange={(file) => void onFileChange("packageZipFile", file)}
+          onFileChange={(file) => onFileChange("packageZipFile", file)}
         />
 
         <UploadDropzone
           title="Full WAV/AIFF"
-          hint="Optional full-quality master"
+          hint="Optional full-quality master · up to 50MB"
           file={files.fullWavFile}
           accept=".wav,.aif,.aiff"
-          onFileChange={(file) => void onFileChange("fullWavFile", file)}
+          onFileChange={(file) => onFileChange("fullWavFile", file)}
         />
 
         <UploadDropzone
           title="Full MP3"
-          hint="Optional alternate full MP3"
+          hint="Optional alternate full MP3 · up to 50MB"
           file={files.fullMp3File}
           accept=".mp3"
-          onFileChange={(file) => void onFileChange("fullMp3File", file)}
+          onFileChange={(file) => onFileChange("fullMp3File", file)}
         />
 
         <UploadDropzone
           title="Stems ZIP / MIDI"
-          hint="Optional extra versions"
+          hint="Optional stems ZIP · up to 50MB"
           file={files.stemsZipFile}
           accept=".zip"
-          onFileChange={(file) => void onFileChange("stemsZipFile", file)}
+          onFileChange={(file) => onFileChange("stemsZipFile", file)}
         />
 
         <UploadDropzone
@@ -512,7 +512,7 @@ export function UploadTrackForm() {
           hint="Optional .mid / .midi"
           file={files.midiFile}
           accept=".mid,.midi"
-          onFileChange={(file) => void onFileChange("midiFile", file)}
+          onFileChange={(file) => onFileChange("midiFile", file)}
         />
       </section>
 
