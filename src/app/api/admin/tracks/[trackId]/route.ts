@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { getAuthState } from "@/lib/auth/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { hasSupabaseEnv } from "@/lib/supabase/config";
+import { hasSupabaseAdminEnv } from "@/lib/supabase/config";
 
 interface UpdateTrackBody {
   title?: string;
@@ -39,8 +39,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ tr
     return authError;
   }
 
-  if (!hasSupabaseEnv()) {
-    return NextResponse.json({ error: "Supabase is not configured." }, { status: 400 });
+  if (!hasSupabaseAdminEnv()) {
+    return NextResponse.json({ error: "Supabase admin environment is missing. Add SUPABASE_SERVICE_ROLE_KEY." }, { status: 400 });
   }
 
   const { trackId } = await params;
@@ -115,8 +115,8 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     return authError;
   }
 
-  if (!hasSupabaseEnv()) {
-    return NextResponse.json({ error: "Supabase is not configured." }, { status: 400 });
+  if (!hasSupabaseAdminEnv()) {
+    return NextResponse.json({ error: "Supabase admin environment is missing. Add SUPABASE_SERVICE_ROLE_KEY." }, { status: 400 });
   }
 
   const { trackId } = await params;

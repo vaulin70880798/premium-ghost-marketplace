@@ -115,7 +115,7 @@ Mocked in MVP:
 4. Run `supabase/schema.sql` in SQL editor.
 5. Fill `.env.local` from `.env.example`:
    - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` (or `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY`)
    - `SUPABASE_SERVICE_ROLE_KEY` (server only)
 6. Create one admin user:
    - Sign up normally first, then update `profiles.role = 'admin'` manually in Supabase SQL once.

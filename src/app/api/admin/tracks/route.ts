@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 import { tracks as seedTracks, producers as seedProducers } from "@/data/seed";
 import { getAuthState } from "@/lib/auth/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { hasSupabaseEnv } from "@/lib/supabase/config";
+import { hasSupabaseAdminEnv, hasSupabaseEnv } from "@/lib/supabase/config";
 import type { Track } from "@/types/domain";
 
 type AdminTrack = {
@@ -120,6 +120,15 @@ export async function GET() {
     });
   }
 
+  if (!hasSupabaseAdminEnv()) {
+    return NextResponse.json({
+      ...seedFallback(),
+      mode: "seed",
+      writable: false,
+      message: "SUPABASE_SERVICE_ROLE_KEY is missing. Admin track editing is disabled.",
+    });
+  }
+
   const adminClient = createSupabaseAdminClient();
 
   const [{ data: tracksData, error: tracksError }, { data: producersData, error: producersError }] = await Promise.all([
@@ -168,10 +177,10 @@ export async function POST(request: Request) {
     return authError;
   }
 
-  if (!hasSupabaseEnv()) {
+  if (!hasSupabaseAdminEnv()) {
     return NextResponse.json(
       {
-        error: "Supabase is not configured yet. Track creation is disabled.",
+        error: "Supabase admin environment is missing. Add SUPABASE_SERVICE_ROLE_KEY.",
       },
       { status: 400 },
     );
