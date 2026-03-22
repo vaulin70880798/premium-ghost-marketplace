@@ -3,7 +3,7 @@
 import type { User } from "@supabase/supabase-js";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
-import { DEMO_ADMIN_LOCAL_KEY } from "@/lib/auth/demo-admin";
+import { DEMO_ADMIN_LOCAL_KEY, DEMO_ADMIN_SESSION_COOKIE } from "@/lib/auth/demo-admin";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { hasSupabaseEnv } from "@/lib/supabase/config";
 import type { UserRole } from "@/types/domain";
@@ -35,6 +35,14 @@ function parseRole(value: string | null | undefined): UserRole {
   return "buyer";
 }
 
+function hasDemoAdminCookieClient() {
+  if (typeof document === "undefined") {
+    return false;
+  }
+
+  return document.cookie.split("; ").some((cookie) => cookie.startsWith(`${DEMO_ADMIN_SESSION_COOKIE}=1`));
+}
+
 export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [favorites, setFavorites] = useState<string[]>(() => {
     if (typeof window === "undefined") {
@@ -59,8 +67,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       return "buyer";
     }
 
-    const hasDemoAdminSession = window.localStorage.getItem(DEMO_ADMIN_LOCAL_KEY) === "1";
+    const hasLocalDemoSession = window.localStorage.getItem(DEMO_ADMIN_LOCAL_KEY) === "1";
+    const hasCookieDemoSession = hasDemoAdminCookieClient();
+    const hasDemoAdminSession = hasLocalDemoSession && hasCookieDemoSession;
     const storedRole = window.localStorage.getItem(ROLE_KEY) as UserRole | null;
+
+    if (hasLocalDemoSession && !hasCookieDemoSession) {
+      window.localStorage.removeItem(DEMO_ADMIN_LOCAL_KEY);
+    }
 
     if (!hasDemoAdminSession && storedRole === "admin") {
       return "buyer";
@@ -77,7 +91,15 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
 
-    return window.localStorage.getItem(DEMO_ADMIN_LOCAL_KEY) === "1";
+    const hasLocalDemoSession = window.localStorage.getItem(DEMO_ADMIN_LOCAL_KEY) === "1";
+    const hasCookieDemoSession = hasDemoAdminCookieClient();
+
+    if (hasLocalDemoSession && !hasCookieDemoSession) {
+      window.localStorage.removeItem(DEMO_ADMIN_LOCAL_KEY);
+      return false;
+    }
+
+    return hasLocalDemoSession && hasCookieDemoSession;
   });
   const [authUser, setAuthUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(() => !hasSupabaseEnv());

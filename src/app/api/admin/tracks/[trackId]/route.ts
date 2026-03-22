@@ -109,7 +109,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ tr
   return NextResponse.json({ ok: true });
 }
 
-export async function DELETE(_request: Request, { params }: { params: Promise<{ trackId: string }> }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ trackId: string }> }) {
   const authError = await requireAdmin();
   if (authError) {
     return authError;
@@ -121,12 +121,26 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
 
   const { trackId } = await params;
   const adminClient = createSupabaseAdminClient();
+  const isHardDelete = new URL(request.url).searchParams.get("hard") === "1";
 
-  const { error } = await adminClient.from("tracks").delete().eq("id", trackId);
+  if (isHardDelete) {
+    const { error } = await adminClient.from("tracks").delete().eq("id", trackId);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    return NextResponse.json({ ok: true, deleted: true });
+  }
+
+  const { error } = await adminClient
+    .from("tracks")
+    .update({ status: "rejected", updated_at: new Date().toISOString() })
+    .eq("id", trackId);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, archived: true });
 }

@@ -566,8 +566,28 @@ function UploadDropzone({
   file: File | null;
   onFileChange: (file: File | null) => void;
 }) {
+  const [isDragging, setIsDragging] = useState(false);
+
   return (
-    <label className="group flex cursor-pointer flex-col items-center justify-center rounded-3xl border border-dashed border-zinc-300 bg-white p-6 text-center transition hover:border-indigo-300 hover:bg-indigo-50/40">
+    <label
+      className={`group flex cursor-pointer flex-col items-center justify-center rounded-3xl border border-dashed bg-white p-6 text-center transition hover:border-indigo-300 hover:bg-indigo-50/40 ${
+        isDragging ? "border-indigo-400 bg-indigo-50/50" : "border-zinc-300"
+      }`}
+      onDragOver={(event) => {
+        event.preventDefault();
+        setIsDragging(true);
+      }}
+      onDragLeave={(event) => {
+        event.preventDefault();
+        setIsDragging(false);
+      }}
+      onDrop={(event) => {
+        event.preventDefault();
+        setIsDragging(false);
+        const droppedFile = event.dataTransfer.files?.[0] ?? null;
+        onFileChange(droppedFile);
+      }}
+    >
       <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100 text-zinc-600 group-hover:bg-indigo-100 group-hover:text-indigo-600">
         <UploadCloud className="h-5 w-5" />
       </span>
@@ -577,6 +597,20 @@ function UploadDropzone({
       </span>
       <span className="mt-1 text-xs text-zinc-500">{hint}</span>
       <span className="mt-2 line-clamp-1 text-xs font-medium text-zinc-700">{file ? file.name : "Choose file"}</span>
+      <span className="mt-1 text-[11px] text-zinc-500">Drag file here or click to upload</span>
+      {file ? (
+        <button
+          type="button"
+          className="mt-3 rounded-full border border-zinc-200 px-3 py-1 text-xs font-medium text-zinc-600 hover:border-zinc-300"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onFileChange(null);
+          }}
+        >
+          Remove file
+        </button>
+      ) : null}
       <input
         type="file"
         className="sr-only"

@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, Plus, Trash2 } from "lucide-react";
+import { Download, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -39,6 +39,32 @@ type TracksResponsePayload = {
   error?: string;
   message?: string;
 };
+
+const genreOptions = [
+  "Melodic Techno",
+  "Tech House",
+  "Afro House",
+  "Deep House",
+  "Progressive House",
+  "Drum & Bass",
+  "Garage",
+  "Other",
+];
+const moodOptions = ["Euphoric", "Dark", "Hypnotic", "Atmospheric", "Groovy", "Cinematic", "Emotional"];
+const keyOptions = [
+  "A minor",
+  "B minor",
+  "C minor",
+  "D minor",
+  "E minor",
+  "F minor",
+  "G minor",
+  "F# minor",
+  "C# minor",
+  "D# minor",
+  "A major",
+  "G major",
+];
 
 export function ManageTracksPanel() {
   const [tracks, setTracks] = useState<AdminTrack[]>([]);
@@ -162,16 +188,25 @@ export function ManageTracksPanel() {
     await loadData();
   };
 
-  const deleteTrack = async (trackId: string) => {
-    const response = await fetch(`/api/admin/tracks/${trackId}`, { method: "DELETE" });
+  const toggleArchivedState = async (track: AdminTrack) => {
+    const response =
+      track.status === "rejected"
+        ? await fetch(`/api/admin/tracks/${track.id}`, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ status: "draft" }),
+          })
+        : await fetch(`/api/admin/tracks/${track.id}`, { method: "DELETE" });
     const payload = (await response.json().catch(() => null)) as { error?: string } | null;
 
     if (!response.ok) {
-      toast.error(payload?.error ?? "Could not delete track.");
+      toast.error(payload?.error ?? "Could not update archive status.");
       return;
     }
 
-    toast.success("Track deleted.");
+    toast.success(track.status === "rejected" ? "Track restored to draft." : "Track archived.");
     await loadData();
   };
 
@@ -251,12 +286,34 @@ export function ManageTracksPanel() {
 
           <label className="space-y-1.5 text-sm">
             <span className="text-zinc-700">Genre</span>
-            <Input required value={genre} onChange={(event) => setGenre(event.target.value)} disabled={!writable} />
+            <select
+              value={genre}
+              onChange={(event) => setGenre(event.target.value)}
+              disabled={!writable}
+              className="h-11 w-full rounded-2xl border border-zinc-200 bg-white px-3 text-sm"
+            >
+              {genreOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
           </label>
 
           <label className="space-y-1.5 text-sm">
             <span className="text-zinc-700">Mood</span>
-            <Input required value={mood} onChange={(event) => setMood(event.target.value)} disabled={!writable} />
+            <select
+              value={mood}
+              onChange={(event) => setMood(event.target.value)}
+              disabled={!writable}
+              className="h-11 w-full rounded-2xl border border-zinc-200 bg-white px-3 text-sm"
+            >
+              {moodOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
           </label>
 
           <label className="space-y-1.5 text-sm">
@@ -266,7 +323,18 @@ export function ManageTracksPanel() {
 
           <label className="space-y-1.5 text-sm">
             <span className="text-zinc-700">Musical key</span>
-            <Input required value={musicalKey} onChange={(event) => setMusicalKey(event.target.value)} disabled={!writable} />
+            <select
+              value={musicalKey}
+              onChange={(event) => setMusicalKey(event.target.value)}
+              disabled={!writable}
+              className="h-11 w-full rounded-2xl border border-zinc-200 bg-white px-3 text-sm"
+            >
+              {keyOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
           </label>
 
           <label className="space-y-1.5 text-sm">
@@ -344,13 +412,15 @@ export function ManageTracksPanel() {
                     Package
                   </a>
 
-                  <button
-                    type="button"
-                    onClick={() => void toggleStatus(track)}
-                    className="rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700"
-                  >
-                    {track.status === "published" ? "Move to Draft" : "Publish"}
-                  </button>
+                  {track.status !== "rejected" ? (
+                    <button
+                      type="button"
+                      onClick={() => void toggleStatus(track)}
+                      className="rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700"
+                    >
+                      {track.status === "published" ? "Move to Draft" : "Publish"}
+                    </button>
+                  ) : null}
 
                   <button
                     type="button"
@@ -362,11 +432,15 @@ export function ManageTracksPanel() {
 
                   <button
                     type="button"
-                    onClick={() => void deleteTrack(track.id)}
+                    onClick={() => void toggleArchivedState(track)}
                     className="inline-flex items-center rounded-full border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600"
                   >
-                    <Trash2 className="mr-1 h-3.5 w-3.5" />
-                    Delete
+                    {track.status === "rejected" ? (
+                      <RotateCcw className="mr-1 h-3.5 w-3.5" />
+                    ) : (
+                      <Trash2 className="mr-1 h-3.5 w-3.5" />
+                    )}
+                    {track.status === "rejected" ? "Restore" : "Archive"}
                   </button>
                 </div>
               </article>
