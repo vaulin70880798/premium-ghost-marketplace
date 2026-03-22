@@ -2,26 +2,6 @@
 
 create extension if not exists "pgcrypto";
 
-create or replace function public.app_role()
-returns text
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  select role from public.profiles where id = auth.uid();
-$$;
-
-create or replace function public.is_admin()
-returns boolean
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  select coalesce((select role = 'admin' from public.profiles where id = auth.uid()), false);
-$$;
-
 create table if not exists profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text unique,
@@ -157,6 +137,26 @@ create table if not exists audit_logs (
   created_at timestamptz not null default now()
 );
 
+create or replace function public.app_role()
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select role from public.profiles where id = auth.uid();
+$$;
+
+create or replace function public.is_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce((select role = 'admin' from public.profiles where id = auth.uid()), false);
+$$;
+
 create index if not exists idx_tracks_genre on tracks(genre);
 create index if not exists idx_tracks_status on tracks(status);
 create index if not exists idx_tracks_created_at on tracks(created_at desc);
@@ -258,6 +258,21 @@ using (
     where t.id = track_files.track_id and (t.status = 'published' or p.profile_id = auth.uid())
   )
 );
+
+create policy "Service role full access profiles"
+on profiles for all
+using (auth.role() = 'service_role')
+with check (auth.role() = 'service_role');
+
+create policy "Service role full access producers"
+on producers for all
+using (auth.role() = 'service_role')
+with check (auth.role() = 'service_role');
+
+create policy "Service role full access tracks"
+on tracks for all
+using (auth.role() = 'service_role')
+with check (auth.role() = 'service_role');
 
 create policy "Track owner/admin can manage track files"
 on track_files for all
@@ -407,6 +422,10 @@ security definer
 set search_path = public
 as $$
 begin
+  if auth.role() = 'service_role' then
+    return new;
+  end if;
+
   if public.is_admin() then
     return new;
   end if;

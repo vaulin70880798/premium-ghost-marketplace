@@ -23,7 +23,7 @@ function parseRole(value: string | null | undefined): "buyer" | "producer" | "ad
 
 export default function SignInPage() {
   const router = useRouter();
-  const { syncRoleFromProfile, activateDemoAdminSession } = useAppState();
+  const { syncRoleFromProfile, activateDemoAdminSession, setRole } = useAppState();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -86,17 +86,11 @@ export default function SignInPage() {
     const { data: profile } = await supabase.from("profiles").select("role").eq("id", data.user.id).maybeSingle();
     const role = parseRole(profile?.role);
 
-    if (role === "admin") {
-      await supabase.auth.signOut();
-      setIsSubmitting(false);
-      toast.error("Admin access in this phase is only via the temporary admin credentials.");
-      return;
-    }
-
+    setRole(role);
     await syncRoleFromProfile();
     setIsSubmitting(false);
     toast.success("Signed in");
-    router.push("/dashboard");
+    router.push(role === "admin" ? "/admin" : "/dashboard");
     router.refresh();
   };
 
