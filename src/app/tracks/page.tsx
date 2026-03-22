@@ -1,9 +1,10 @@
 import { BrowseTracksClient } from "@/components/tracks/browse-tracks-client";
-import { getFilterCollections, getTracks } from "@/data/queries";
+import { getFilterCollections } from "@/data/queries";
 import { producers, profiles } from "@/data/seed";
+import { trackRepository } from "@/lib/supabase/repositories";
 
-export default function TracksPage() {
-  const tracks = getTracks();
+export default async function TracksPage() {
+  const tracks = await trackRepository.list();
   const filterCollections = getFilterCollections();
 
   const producerById = Object.fromEntries(

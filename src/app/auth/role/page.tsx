@@ -1,9 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { useAppState } from "@/components/providers/app-provider";
 import { Button } from "@/components/ui/button";
+import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { hasSupabaseEnv } from "@/lib/supabase/config";
 import type { UserRole } from "@/types/domain";
 
 const roleCopy: Record<UserRole, string> = {
@@ -13,7 +18,80 @@ const roleCopy: Record<UserRole, string> = {
 };
 
 export default function RoleSelectionPage() {
-  const { role, setRole } = useAppState();
+  const router = useRouter();
+  const { role, setRole, syncRoleFromProfile } = useAppState();
+  const [userId, setUserId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(() => hasSupabaseEnv());
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (!hasSupabaseEnv()) {
+      return;
+    }
+
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) {
+      return;
+    }
+
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) {
+        router.push("/auth/sign-in");
+        return;
+      }
+
+      setUserId(data.user.id);
+
+      const { data: profile } = await supabase.from("profiles").select("role").eq("id", data.user.id).maybeSingle();
+      if (profile?.role === "buyer" || profile?.role === "producer" || profile?.role === "admin") {
+        setRole(profile.role);
+      }
+
+      setIsLoading(false);
+    });
+  }, [router, setRole]);
+
+  const onContinue = async () => {
+    if (!hasSupabaseEnv()) {
+      toast.info("Supabase is not configured yet. Running demo mode.");
+      router.push("/dashboard");
+      return;
+    }
+
+    if (!userId) {
+      toast.error("Please sign in first.");
+      router.push("/auth/sign-in");
+      return;
+    }
+
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) {
+      toast.error("Supabase client is unavailable.");
+      return;
+    }
+
+    setIsSaving(true);
+
+    const { error } = await supabase.from("profiles").upsert(
+      {
+        id: userId,
+        role,
+      },
+      { onConflict: "id" },
+    );
+
+    setIsSaving(false);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    await syncRoleFromProfile();
+    toast.success("Role updated");
+    router.push("/dashboard");
+    router.refresh();
+  };
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -40,8 +118,8 @@ export default function RoleSelectionPage() {
         </div>
 
         <div className="mt-6 flex gap-2">
-          <Button asChild>
-            <Link href="/dashboard">Continue to Dashboard</Link>
+          <Button onClick={onContinue} disabled={isSaving || isLoading}>
+            {isLoading ? "Loading..." : isSaving ? "Saving..." : "Continue to Dashboard"}
           </Button>
           <Button asChild variant="outline">
             <Link href="/tracks">Browse tracks first</Link>

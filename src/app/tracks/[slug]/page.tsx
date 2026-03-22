@@ -3,18 +3,29 @@ import { ChevronRight } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import { TrackDetailClient } from "@/components/tracks/track-detail-client";
-import { getProducerProfile, getSimilarTracks, getTrackBySlug } from "@/data/queries";
+import { producers, profiles } from "@/data/seed";
+import { trackRepository } from "@/lib/supabase/repositories";
 
 export default async function TrackDetailsPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const track = getTrackBySlug(slug);
+  const track = await trackRepository.getBySlug(slug);
 
   if (!track) {
     notFound();
   }
 
-  const producerProfile = getProducerProfile(track.producerId);
-  const similarTracks = getSimilarTracks(track, 3);
+  const allTracks = await trackRepository.list();
+  const similarTracks = allTracks
+    .filter((item) => item.id !== track.id && item.genre === track.genre && item.exclusivityStatus === "available")
+    .slice(0, 3);
+
+  const producerName =
+    producers
+      .map((producer) => {
+        const profile = profiles.find((item) => item.id === producer.profileId);
+        return [producer.id, profile?.displayName ?? producer.artistName] as const;
+      })
+      .find(([id]) => id === track.producerId)?.[1] ?? "Verified Producer";
 
   return (
     <div className="space-y-6">
@@ -26,11 +37,7 @@ export default async function TrackDetailsPage({ params }: { params: Promise<{ s
         <span className="text-zinc-900">{track.title}</span>
       </nav>
 
-      <TrackDetailClient
-        track={track}
-        producerName={producerProfile?.profile.displayName ?? "Unknown Producer"}
-        similarTracks={similarTracks}
-      />
+      <TrackDetailClient track={track} producerName={producerName} similarTracks={similarTracks} />
     </div>
   );
 }

@@ -3,8 +3,11 @@ import Link from "next/link";
 import { UploadTrackForm } from "@/components/forms/upload-track-form";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { Badge } from "@/components/ui/badge";
+import { requireRole } from "@/lib/auth/server";
 
-export default function UploadPage() {
+export default async function UploadPage() {
+  await requireRole(["producer", "admin"]);
+
   return (
     <div className="mx-auto max-w-5xl space-y-8">
       <SectionHeading

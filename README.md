@@ -20,7 +20,7 @@ Built with:
 - Upload track flow (mocked file handling UI)
 - Custom services page + request form
 - Checkout simulation + success/download state
-- Auth pages + role selection
+- Auth pages + role selection (Supabase-ready, with real session when env configured)
 - Admin placeholder structure
 - Empty/loading/404 states
 
@@ -29,7 +29,7 @@ Built with:
 - Producer
 - Admin
 
-Role is selected in-app and persisted in local storage for demo behavior.
+Role is synced from `profiles.role` when Supabase auth is configured.
 
 ## Project structure
 ```text
@@ -83,20 +83,22 @@ Real in MVP:
 - Track browsing/filtering/searching/sorting
 - Real preview audio playback from legal CC0 demo tracks
 - Favorites persistence (local storage)
-- Role-based dashboard routing structure
+- Supabase Auth sign-in/sign-up flows (when env is configured)
+- Server-side role guards for buyer/producer/admin routes
 - Form submission UX with toasts
 
 Mocked in MVP:
-- Payment processing (Stripe-ready placeholder)
+- Payment processing (PayPal/Stripe not connected yet)
 - File uploads/download delivery (simulated)
-- Auth persistence/session (demo mode)
+- Favorites backend sync (still local storage)
 - API handlers return mock success payloads
 
 ## Supabase setup
 1. Create Supabase project.
-2. Run `supabase/schema.sql` in SQL editor.
-3. Fill `.env.local` from `.env.example`.
-4. Replace local seed repositories with Supabase calls incrementally.
+2. Enable Email auth in Supabase Authentication.
+3. Run `supabase/schema.sql` in SQL editor.
+4. Fill `.env.local` from `.env.example`.
+5. (Optional) seed tracks into `tracks` table; app falls back to local seed if DB is empty/unconfigured.
 
 ## Local development
 ```bash
@@ -119,8 +121,8 @@ npm run build
 4. Deploy.
 
 ## Suggested post-MVP upgrades
-1. Supabase Auth with protected dashboards.
-2. Real audio preview streaming + waveform.
-3. Stripe checkout + webhook order finalization.
-4. Supabase Storage for artwork/audio/packages.
-5. Signed download URLs + legal rights-transfer PDF generation.
+1. PayPal checkout (create/capture/webhooks + idempotency).
+2. Supabase Storage for artwork/audio/packages.
+3. Favorites/orders/service-requests full DB-backed repositories.
+4. Signed download URLs + legal rights-transfer PDF generation.
+5. Producer public profile pages backed by real DB content.

@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { Heart, Menu, X } from "lucide-react";
+import { Heart, LogOut, Menu, X } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { useAppState } from "@/components/providers/app-provider";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -13,7 +14,8 @@ import { cn } from "@/lib/utils";
 
 export function Header() {
   const pathname = usePathname();
-  const { favorites, role } = useAppState();
+  const router = useRouter();
+  const { favorites, role, isAuthenticated, signOut, authEmail } = useAppState();
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -48,16 +50,34 @@ export function Header() {
         </nav>
 
         <div className="hidden items-center gap-2 md:flex">
-          <Link href="/favorites" className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "gap-1")}> 
+          <Link href="/favorites" className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "gap-1")}>
             <Heart className="h-4 w-4" />
             <span>{favorites.length}</span>
           </Link>
           <Link href="/dashboard" className={buttonVariants({ variant: "outline", size: "sm" })}>
             {role === "buyer" ? "Buyer Dashboard" : role === "producer" ? "Producer Dashboard" : "Admin Dashboard"}
           </Link>
-          <Link href="/auth/sign-in" className={buttonVariants({ variant: "default", size: "sm" })}>
-            Sign In
-          </Link>
+          {isAuthenticated ? (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={async () => {
+                await signOut();
+                toast.success("Signed out");
+                router.push("/");
+                router.refresh();
+              }}
+              className="gap-1"
+              title={authEmail ?? undefined}
+            >
+              <LogOut className="h-4 w-4" />
+              Sign Out
+            </Button>
+          ) : (
+            <Link href="/auth/sign-in" className={buttonVariants({ variant: "default", size: "sm" })}>
+              Sign In
+            </Link>
+          )}
         </div>
 
         <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setIsOpen((prev) => !prev)}>
@@ -97,7 +117,7 @@ export function Header() {
                 onClick={() => setIsOpen(false)}
                 className="rounded-2xl bg-zinc-950 px-3 py-2 text-sm font-semibold text-white"
               >
-                Sign In
+                {isAuthenticated ? "Account" : "Sign In"}
               </Link>
             </div>
           </motion.div>

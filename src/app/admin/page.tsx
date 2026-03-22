@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { requireRole } from "@/lib/auth/server";
 
 const modules = [
   {
@@ -34,7 +35,9 @@ const modules = [
   },
 ];
 
-export default function AdminPage() {
+export default async function AdminPage() {
+  await requireRole(["admin"]);
+
   return (
     <div className="space-y-8">
       <section className="rounded-3xl border border-zinc-200 bg-white p-7 shadow-[0_24px_70px_rgba(12,20,38,0.08)]">
