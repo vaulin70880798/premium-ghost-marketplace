@@ -83,8 +83,15 @@ export default function SignInPage() {
       return;
     }
 
-    const { data: profile } = await supabase.from("profiles").select("role").eq("id", data.user.id).maybeSingle();
+    const { data: profile } = await supabase.from("profiles").select("role, is_active").eq("id", data.user.id).maybeSingle();
     const role = parseRole(profile?.role);
+
+    if (profile?.is_active === false) {
+      await supabase.auth.signOut();
+      setIsSubmitting(false);
+      toast.error("Account is inactive. Contact admin.");
+      return;
+    }
 
     setRole(role);
     await syncRoleFromProfile();

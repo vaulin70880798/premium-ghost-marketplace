@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { UploadCloud } from "lucide-react";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { Checkbox } from "@/components/ui/checkbox";
@@ -11,11 +13,140 @@ import { Textarea } from "@/components/ui/textarea";
 
 const deliverables = ["WAV", "Stems", "MIDI", "Master", "Unmastered", "Extended Mix", "Radio Edit"];
 
+const IMAGE_MAX_BYTES = 2 * 1024 * 1024;
+const PREVIEW_MAX_BYTES = 25 * 1024 * 1024;
+const AUDIO_MAX_BYTES = 150 * 1024 * 1024;
+const ZIP_MAX_BYTES = 500 * 1024 * 1024;
+
+type UploadFileState = {
+  artworkFile: File | null;
+  previewFile: File | null;
+  packageZipFile: File | null;
+  fullWavFile: File | null;
+  fullMp3File: File | null;
+  stemsZipFile: File | null;
+  midiFile: File | null;
+};
+
+type ProducerOption = {
+  id: string;
+  artistName: string;
+};
+
+const initialFiles: UploadFileState = {
+  artworkFile: null,
+  previewFile: null,
+  packageZipFile: null,
+  fullWavFile: null,
+  fullMp3File: null,
+  stemsZipFile: null,
+  midiFile: null,
+};
+
+function hasExtension(file: File, extensions: string[]) {
+  const extension = file.name.split(".").at(-1)?.toLowerCase() ?? "";
+  return extensions.includes(extension);
+}
+
+async function getImageDimensions(file: File) {
+  const objectUrl = URL.createObjectURL(file);
+
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const element = new Image();
+      element.onload = () => resolve(element);
+      element.onerror = () => reject(new Error("Invalid image file."));
+      element.src = objectUrl;
+    });
+
+    return {
+      width: image.width,
+      height: image.height,
+    };
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
 export function UploadTrackForm() {
+  const router = useRouter();
+  const [producers, setProducers] = useState<ProducerOption[]>([]);
+  const [isLoadingProducers, setIsLoadingProducers] = useState(true);
+  const [isWritable, setIsWritable] = useState(true);
+
+  const [title, setTitle] = useState("");
+  const [producerId, setProducerId] = useState("");
+  const [genre, setGenre] = useState("Melodic Techno");
+  const [bpm, setBpm] = useState(124);
+  const [musicalKey, setMusicalKey] = useState("A minor");
+  const [mood, setMood] = useState("Atmospheric");
+  const [price, setPrice] = useState(990);
+  const [durationSeconds, setDurationSeconds] = useState(180);
+  const [tags, setTags] = useState("Festival, Cinematic, Peak-time");
+  const [description, setDescription] = useState("");
+
   const [selectedDeliverables, setSelectedDeliverables] = useState<string[]>(["WAV", "Stems", "Master"]);
   const [exclusiveSale, setExclusiveSale] = useState(true);
   const [agreed, setAgreed] = useState(false);
+  const [files, setFiles] = useState<UploadFileState>(initialFiles);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const run = async () => {
+      const response = await fetch("/api/admin/tracks", { method: "GET" });
+      const payload = (await response.json().catch(() => null)) as
+        | {
+            producers?: ProducerOption[];
+            writable?: boolean;
+            error?: string;
+            message?: string;
+          }
+        | null;
+
+      if (!mounted) {
+        return;
+      }
+
+      setIsLoadingProducers(false);
+
+      if (!response.ok || !payload) {
+        toast.error(payload?.error ?? "Could not load producers.");
+        return;
+      }
+
+      if (payload.message) {
+        toast.info(payload.message);
+      }
+
+      const loadedProducers = payload.producers ?? [];
+      setProducers(loadedProducers);
+      setIsWritable(Boolean(payload.writable));
+      setProducerId(loadedProducers[0]?.id ?? "");
+    };
+
+    void run();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const producerSelectDisabled = isLoadingProducers || producers.length === 0 || !isWritable;
+  const hasRequiredFiles = Boolean(files.artworkFile && files.previewFile && files.packageZipFile);
+
+  const submitDisabled = useMemo(() => {
+    return (
+      isSubmitting ||
+      !isWritable ||
+      producerSelectDisabled ||
+      !agreed ||
+      !hasRequiredFiles ||
+      !description.trim() ||
+      !title.trim()
+    );
+  }, [agreed, description, hasRequiredFiles, isSubmitting, isWritable, producerSelectDisabled, title]);
 
   const toggleDeliverable = (item: string) => {
     setSelectedDeliverables((current) =>
@@ -23,58 +154,289 @@ export function UploadTrackForm() {
     );
   };
 
+  const validateGenericFile = (file: File, options: { maxBytes: number; mime: string[]; extensions: string[]; label: string }) => {
+    if (file.size > options.maxBytes) {
+      return `${options.label} exceeds size limit.`;
+    }
+
+    if (!options.mime.includes(file.type) && !hasExtension(file, options.extensions)) {
+      return `${options.label} has unsupported format.`;
+    }
+
+    return null;
+  };
+
+  const onFileChange = async (key: keyof UploadFileState, file: File | null) => {
+    if (!file) {
+      setFiles((current) => ({ ...current, [key]: null }));
+      return;
+    }
+
+    if (key === "artworkFile") {
+      const genericError = validateGenericFile(file, {
+        maxBytes: IMAGE_MAX_BYTES,
+        mime: ["image/jpeg", "image/png", "image/webp"],
+        extensions: ["jpg", "jpeg", "png", "webp"],
+        label: "Artwork",
+      });
+
+      if (genericError) {
+        toast.error(genericError);
+        return;
+      }
+
+      try {
+        const { width, height } = await getImageDimensions(file);
+        if (width !== height) {
+          toast.error("Artwork must be square (1:1).");
+          return;
+        }
+
+        if (width < 1200 || height < 1200) {
+          toast.error("Artwork resolution must be at least 1200x1200.");
+          return;
+        }
+      } catch {
+        toast.error("Could not validate artwork dimensions.");
+        return;
+      }
+    }
+
+    if (key === "previewFile") {
+      const error = validateGenericFile(file, {
+        maxBytes: PREVIEW_MAX_BYTES,
+        mime: ["audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav"],
+        extensions: ["mp3", "wav"],
+        label: "Preview file",
+      });
+
+      if (error) {
+        toast.error(error);
+        return;
+      }
+    }
+
+    if (key === "packageZipFile" || key === "stemsZipFile") {
+      const error = validateGenericFile(file, {
+        maxBytes: ZIP_MAX_BYTES,
+        mime: ["application/zip", "application/x-zip-compressed", "application/octet-stream"],
+        extensions: ["zip"],
+        label: key === "packageZipFile" ? "Package ZIP" : "Stems ZIP",
+      });
+
+      if (error) {
+        toast.error(error);
+        return;
+      }
+    }
+
+    if (key === "fullWavFile") {
+      const error = validateGenericFile(file, {
+        maxBytes: AUDIO_MAX_BYTES,
+        mime: ["audio/wav", "audio/x-wav", "audio/aiff", "audio/x-aiff"],
+        extensions: ["wav", "aif", "aiff"],
+        label: "Full WAV/AIFF",
+      });
+
+      if (error) {
+        toast.error(error);
+        return;
+      }
+    }
+
+    if (key === "fullMp3File") {
+      const error = validateGenericFile(file, {
+        maxBytes: AUDIO_MAX_BYTES,
+        mime: ["audio/mpeg", "audio/mp3"],
+        extensions: ["mp3"],
+        label: "Full MP3",
+      });
+
+      if (error) {
+        toast.error(error);
+        return;
+      }
+    }
+
+    if (key === "midiFile") {
+      const error = validateGenericFile(file, {
+        maxBytes: 10 * 1024 * 1024,
+        mime: ["audio/midi", "audio/x-midi", "application/octet-stream"],
+        extensions: ["mid", "midi"],
+        label: "MIDI",
+      });
+
+      if (error) {
+        toast.error(error);
+        return;
+      }
+    }
+
+    setFiles((current) => ({ ...current, [key]: file }));
+  };
+
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     if (!agreed) {
-      toast.error("Please accept terms before submitting");
+      toast.error("Please accept terms before submitting.");
       return;
     }
 
+    if (!hasRequiredFiles) {
+      toast.error("Artwork, preview, and package ZIP are required.");
+      return;
+    }
+
+    if (!producerId) {
+      toast.error("Please select producer.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("title", title.trim());
+    formData.append("producerId", producerId);
+    formData.append("genre", genre.trim());
+    formData.append("bpm", String(bpm));
+    formData.append("musicalKey", musicalKey.trim());
+    formData.append("mood", mood.trim());
+    formData.append("description", description.trim());
+    formData.append("price", String(price));
+    formData.append("durationSeconds", String(durationSeconds));
+    formData.append("tags", tags.trim());
+    formData.append("exclusiveSale", String(exclusiveSale));
+    formData.append("hasStems", String(selectedDeliverables.includes("Stems")));
+    formData.append("hasMidi", String(selectedDeliverables.includes("MIDI")));
+    formData.append("hasMaster", String(selectedDeliverables.includes("Master") || selectedDeliverables.includes("WAV")));
+    formData.append("hasUnmastered", String(selectedDeliverables.includes("Unmastered")));
+    formData.append("hasExtendedMix", String(selectedDeliverables.includes("Extended Mix")));
+    formData.append("hasRadioEdit", String(selectedDeliverables.includes("Radio Edit")));
+
+    (Object.keys(files) as Array<keyof UploadFileState>).forEach((key) => {
+      const file = files[key];
+      if (file) {
+        formData.append(key, file);
+      }
+    });
+
     setIsSubmitting(true);
-    await new Promise((resolve) => setTimeout(resolve, 900));
+
+    const response = await fetch("/api/admin/upload-track", {
+      method: "POST",
+      body: formData,
+    });
+
+    const payload = (await response.json().catch(() => null)) as
+      | { ok?: boolean; slug?: string; warning?: string; error?: string }
+      | null;
+
     setIsSubmitting(false);
 
-    toast.success("Track submitted for moderation review");
-    (event.target as HTMLFormElement).reset();
+    if (!response.ok || !payload) {
+      toast.error(payload?.error ?? "Upload failed.");
+      return;
+    }
+
+    if (payload.warning) {
+      toast.warning(payload.warning);
+    } else {
+      toast.success("Track uploaded successfully.");
+    }
+
+    setTitle("");
+    setDescription("");
+    setTags("Festival, Cinematic, Peak-time");
+    setFiles(initialFiles);
     setSelectedDeliverables(["WAV", "Stems", "Master"]);
     setExclusiveSale(true);
     setAgreed(false);
+
+    if (payload.slug) {
+      router.push(`/tracks/${payload.slug}`);
+      router.refresh();
+    }
   };
 
   return (
     <form onSubmit={onSubmit} className="space-y-6">
+      {!isWritable ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Upload is disabled until Supabase admin environment is configured.
+        </div>
+      ) : null}
+
+      {producers.length === 0 ? (
+        <div className="rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-700">
+          No active producers found. Create or restore producers in{" "}
+          <Link href="/admin" className="underline">
+            Admin Team Controls
+          </Link>
+          .
+        </div>
+      ) : null}
+
       <section className="grid gap-4 md:grid-cols-2">
         <Field label="Track title" required>
-          <Input placeholder="e.g. Aurora Protocol" required />
+          <Input placeholder="e.g. Aurora Protocol" required value={title} onChange={(event) => setTitle(event.target.value)} />
         </Field>
-        <Field label="Genre" required>
-          <select className="h-11 w-full rounded-2xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-200" required>
-            <option value="">Select genre</option>
-            <option>Melodic Techno</option>
-            <option>Tech House</option>
-            <option>Afro House</option>
-            <option>Deep House</option>
-            <option>Progressive House</option>
+
+        <Field label="Producer" required>
+          <select
+            value={producerId}
+            onChange={(event) => setProducerId(event.target.value)}
+            className="h-11 w-full rounded-2xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-200"
+            disabled={producerSelectDisabled}
+            required
+          >
+            {isLoadingProducers ? <option>Loading producers...</option> : null}
+            {!isLoadingProducers && producers.length === 0 ? <option>No producers available</option> : null}
+            {producers.map((producer) => (
+              <option key={producer.id} value={producer.id}>
+                {producer.artistName}
+              </option>
+            ))}
           </select>
         </Field>
+
+        <Field label="Genre" required>
+          <Input required value={genre} onChange={(event) => setGenre(event.target.value)} />
+        </Field>
+
         <Field label="BPM" required>
-          <Input type="number" placeholder="124" required />
+          <Input type="number" min={60} max={220} required value={bpm} onChange={(event) => setBpm(Number(event.target.value))} />
         </Field>
+
         <Field label="Musical key" required>
-          <Input placeholder="F# minor" required />
+          <Input required value={musicalKey} onChange={(event) => setMusicalKey(event.target.value)} />
         </Field>
+
         <Field label="Mood" required>
-          <Input placeholder="Emotional, dark, hypnotic" required />
+          <Input required value={mood} onChange={(event) => setMood(event.target.value)} />
         </Field>
+
         <Field label="Price (USD)" required>
-          <Input type="number" placeholder="1290" required />
+          <Input type="number" min={1} required value={price} onChange={(event) => setPrice(Number(event.target.value))} />
+        </Field>
+
+        <Field label="Duration (seconds)">
+          <Input
+            type="number"
+            min={30}
+            value={durationSeconds}
+            onChange={(event) => setDurationSeconds(Number(event.target.value))}
+          />
         </Field>
       </section>
+
+      <Field label="Tags (comma separated)">
+        <Input value={tags} onChange={(event) => setTags(event.target.value)} placeholder="Festival, Cinematic, Peak-time" />
+      </Field>
 
       <Field label="Description" required>
         <Textarea
           required
+          value={description}
+          onChange={(event) => setDescription(event.target.value)}
           placeholder="Describe arrangement highlights, drop energy, and intended use context."
         />
       </Field>
@@ -93,10 +455,65 @@ export function UploadTrackForm() {
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-3">
-        <UploadDropzone title="Upload artwork" hint="PNG or JPG · 1600x1600" />
-        <UploadDropzone title="Upload preview" hint="MP3 · 30 sec" />
-        <UploadDropzone title="Upload package" hint="ZIP with stems and project files" />
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <UploadDropzone
+          title="Artwork"
+          required
+          hint="JPG/PNG/WEBP · square · min 1200x1200 · up to 2MB"
+          file={files.artworkFile}
+          accept=".jpg,.jpeg,.png,.webp"
+          onFileChange={(file) => void onFileChange("artworkFile", file)}
+        />
+
+        <UploadDropzone
+          title="Preview"
+          required
+          hint="MP3/WAV · up to 25MB"
+          file={files.previewFile}
+          accept=".mp3,.wav"
+          onFileChange={(file) => void onFileChange("previewFile", file)}
+        />
+
+        <UploadDropzone
+          title="Main Package ZIP"
+          required
+          hint="ZIP bundle with full delivery assets · up to 500MB"
+          file={files.packageZipFile}
+          accept=".zip"
+          onFileChange={(file) => void onFileChange("packageZipFile", file)}
+        />
+
+        <UploadDropzone
+          title="Full WAV/AIFF"
+          hint="Optional full-quality master"
+          file={files.fullWavFile}
+          accept=".wav,.aif,.aiff"
+          onFileChange={(file) => void onFileChange("fullWavFile", file)}
+        />
+
+        <UploadDropzone
+          title="Full MP3"
+          hint="Optional alternate full MP3"
+          file={files.fullMp3File}
+          accept=".mp3"
+          onFileChange={(file) => void onFileChange("fullMp3File", file)}
+        />
+
+        <UploadDropzone
+          title="Stems ZIP / MIDI"
+          hint="Optional extra versions"
+          file={files.stemsZipFile}
+          accept=".zip"
+          onFileChange={(file) => void onFileChange("stemsZipFile", file)}
+        />
+
+        <UploadDropzone
+          title="MIDI File"
+          hint="Optional .mid / .midi"
+          file={files.midiFile}
+          accept=".mid,.midi"
+          onFileChange={(file) => void onFileChange("midiFile", file)}
+        />
       </section>
 
       <section className="grid gap-3 rounded-3xl border border-zinc-200 bg-white p-5 sm:grid-cols-2">
@@ -105,10 +522,10 @@ export function UploadTrackForm() {
       </section>
 
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Submitting..." : "Submit Track"}
+        <Button type="submit" disabled={submitDisabled}>
+          {isSubmitting ? "Uploading..." : "Upload Track"}
         </Button>
-        <p className="text-xs text-zinc-500">MVP note: file uploads are simulated with placeholder handling.</p>
+        <p className="text-xs text-zinc-500">Only admins can upload, deactivate, and restore team members.</p>
       </div>
     </form>
   );
@@ -134,15 +551,41 @@ function Field({
   );
 }
 
-function UploadDropzone({ title, hint }: { title: string; hint: string }) {
+function UploadDropzone({
+  title,
+  hint,
+  required = false,
+  accept,
+  file,
+  onFileChange,
+}: {
+  title: string;
+  hint: string;
+  required?: boolean;
+  accept: string;
+  file: File | null;
+  onFileChange: (file: File | null) => void;
+}) {
   return (
     <label className="group flex cursor-pointer flex-col items-center justify-center rounded-3xl border border-dashed border-zinc-300 bg-white p-6 text-center transition hover:border-indigo-300 hover:bg-indigo-50/40">
       <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100 text-zinc-600 group-hover:bg-indigo-100 group-hover:text-indigo-600">
         <UploadCloud className="h-5 w-5" />
       </span>
-      <span className="mt-3 text-sm font-semibold text-zinc-900">{title}</span>
+      <span className="mt-3 text-sm font-semibold text-zinc-900">
+        {title}
+        {required ? <span className="ml-1 text-indigo-600">*</span> : null}
+      </span>
       <span className="mt-1 text-xs text-zinc-500">{hint}</span>
-      <input type="file" className="sr-only" />
+      <span className="mt-2 line-clamp-1 text-xs font-medium text-zinc-700">{file ? file.name : "Choose file"}</span>
+      <input
+        type="file"
+        className="sr-only"
+        accept={accept}
+        onChange={(event) => {
+          const pickedFile = event.target.files?.[0] ?? null;
+          onFileChange(pickedFile);
+        }}
+      />
     </label>
   );
 }

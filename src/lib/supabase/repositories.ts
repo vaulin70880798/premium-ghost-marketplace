@@ -1,4 +1,4 @@
-import { tracks as seedTracks } from "@/data/seed";
+import { producers as seedProducers, profiles as seedProfiles, tracks as seedTracks } from "@/data/seed";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasSupabaseEnv } from "@/lib/supabase/config";
 import type { Track } from "@/types/domain";
@@ -57,6 +57,20 @@ function toTrack(row: DbTrackRow): Track {
   };
 }
 
+function fallbackProducerMap(ids: string[]) {
+  return Object.fromEntries(
+    ids.map((id) => {
+      const producer = seedProducers.find((item) => item.id === id);
+      if (!producer) {
+        return [id, "Verified Producer"];
+      }
+
+      const profile = seedProfiles.find((item) => item.id === producer.profileId);
+      return [id, profile?.displayName ?? producer.artistName];
+    }),
+  );
+}
+
 export const trackRepository = {
   async list(): Promise<Track[]> {
     if (!hasSupabaseEnv()) {
@@ -113,5 +127,35 @@ export const trackRepository = {
     }
 
     return toTrack(data as DbTrackRow);
+  },
+
+  async getProducerNameMap(ids: string[]): Promise<Record<string, string>> {
+    if (ids.length === 0) {
+      return {};
+    }
+
+    if (!hasSupabaseEnv()) {
+      return fallbackProducerMap(ids);
+    }
+
+    const supabase = await createSupabaseServerClient();
+    if (!supabase) {
+      return fallbackProducerMap(ids);
+    }
+
+    const { data, error } = await supabase.from("producers").select("id, artist_name, is_active").eq("is_active", true).in("id", ids);
+
+    if (error || !data) {
+      return fallbackProducerMap(ids);
+    }
+
+    const map = Object.fromEntries(data.map((row) => [row.id, row.artist_name]));
+    for (const id of ids) {
+      if (!map[id]) {
+        map[id] = "Verified Producer";
+      }
+    }
+
+    return map;
   },
 };

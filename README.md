@@ -17,13 +17,14 @@ Built with:
 - Favorites (client-persisted)
 - Buyer dashboard
 - Producer dashboard
-- Upload track flow (admin-only for this phase)
+- Real admin upload flow (artwork + preview + WAV/MP3 + ZIP package via Supabase Storage)
 - Custom services page + request form
 - Checkout simulation + success/download state
 - Auth pages with Email/Password + Google OAuth
 - Strict role-based route access (buyer/producer/admin)
 - Admin onboarding form for producer account creation
 - Admin track management panel (add/delete/publish/sold state + preview/package download links)
+- Admin team controls (deactivate/restore producer/admin accounts)
 - Empty/loading/404 states
 
 ## Roles
@@ -99,6 +100,8 @@ Real in MVP:
 - Form submission UX with toasts
 - Admin-only upload route (`/upload`)
 - Admin track CRUD API (`/api/admin/tracks`)
+- Admin multipart upload API (`/api/admin/upload-track`)
+- File validations (image max 2MB, typed audio/zip validation)
 
 Mocked in MVP:
 - Payment processing (PayPal/Stripe not connected yet)

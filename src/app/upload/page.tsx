@@ -17,9 +17,9 @@ export default async function UploadPage() {
       />
 
       <div className="flex flex-wrap gap-2">
-        <Badge>MVP Upload Flow</Badge>
-        <Badge>Moderation Queue Ready</Badge>
-        <Badge>Supabase Storage Ready</Badge>
+        <Badge>Admin-only Upload</Badge>
+        <Badge>Supabase Storage Live</Badge>
+        <Badge>Beatstore-style Metadata</Badge>
       </div>
 
       <UploadTrackForm />

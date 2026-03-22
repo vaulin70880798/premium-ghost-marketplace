@@ -88,7 +88,15 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const { data } = await supabase.from("profiles").select("role").eq("id", userId).maybeSingle();
+    const { data } = await supabase.from("profiles").select("role, is_active").eq("id", userId).maybeSingle();
+
+    if (data?.is_active === false) {
+      await supabase.auth.signOut();
+      setAuthUser(null);
+      setRole("buyer");
+      return;
+    }
+
     if (data?.role) {
       setRole(parseRole(data.role));
     }

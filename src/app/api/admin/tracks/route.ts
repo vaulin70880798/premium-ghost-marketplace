@@ -133,7 +133,7 @@ export async function GET() {
 
   const [{ data: tracksData, error: tracksError }, { data: producersData, error: producersError }] = await Promise.all([
     adminClient.from("tracks").select("*").order("created_at", { ascending: false }),
-    adminClient.from("producers").select("id, artist_name").order("artist_name"),
+    adminClient.from("producers").select("id, artist_name, is_active").eq("is_active", true).order("artist_name"),
   ]);
 
   if (tracksError || producersError) {

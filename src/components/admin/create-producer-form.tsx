@@ -11,6 +11,7 @@ export function CreateProducerForm() {
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [artistName, setArtistName] = useState("");
+  const [role, setRole] = useState<"producer" | "admin">("producer");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -28,6 +29,7 @@ export function CreateProducerForm() {
         password,
         displayName,
         artistName,
+        role,
       }),
     });
 
@@ -40,19 +42,32 @@ export function CreateProducerForm() {
       return;
     }
 
-    toast.success("Producer account created successfully.");
+    toast.success(`${role === "producer" ? "Producer" : "Admin"} account created successfully.`);
     setEmail("");
     setPassword("");
     setDisplayName("");
     setArtistName("");
+    setRole("producer");
   };
 
   return (
     <form onSubmit={onSubmit} className="space-y-3 rounded-3xl border border-zinc-200 bg-white p-5 shadow-[0_16px_48px_rgba(12,20,38,0.06)]">
-      <h2 className="text-lg font-semibold text-zinc-900">Create Producer Account</h2>
+      <h2 className="text-lg font-semibold text-zinc-900">Create Team Member</h2>
       <p className="text-sm text-zinc-600">
-        Admin-only onboarding. This creates auth user + profile role producer + producer record.
+        Admin-only onboarding. Create producer/admin users and manage them from team controls.
       </p>
+
+      <label className="space-y-1.5 text-sm">
+        <span className="text-zinc-700">Role</span>
+        <select
+          value={role}
+          onChange={(event) => setRole(event.target.value === "admin" ? "admin" : "producer")}
+          className="h-11 w-full rounded-2xl border border-zinc-200 bg-white px-3 text-sm"
+        >
+          <option value="producer">Producer</option>
+          <option value="admin">Admin</option>
+        </select>
+      </label>
 
       <label className="space-y-1.5 text-sm">
         <span className="text-zinc-700">Email</span>
@@ -75,13 +90,15 @@ export function CreateProducerForm() {
         <Input required value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
       </label>
 
-      <label className="space-y-1.5 text-sm">
-        <span className="text-zinc-700">Artist Name</span>
-        <Input required value={artistName} onChange={(event) => setArtistName(event.target.value)} />
-      </label>
+      {role === "producer" ? (
+        <label className="space-y-1.5 text-sm">
+          <span className="text-zinc-700">Artist Name</span>
+          <Input required value={artistName} onChange={(event) => setArtistName(event.target.value)} />
+        </label>
+      ) : null}
 
       <Button type="submit" disabled={isSubmitting}>
-        {isSubmitting ? "Creating..." : "Create Producer"}
+        {isSubmitting ? "Creating..." : `Create ${role === "producer" ? "Producer" : "Admin"}`}
       </Button>
     </form>
   );

@@ -1,5 +1,6 @@
 import { CreateProducerForm } from "@/components/admin/create-producer-form";
 import { ManageTracksPanel } from "@/components/admin/manage-tracks-panel";
+import { ManageTeamPanel } from "@/components/admin/manage-team-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { requireRole } from "@/lib/auth/server";
@@ -51,6 +52,7 @@ export default async function AdminPage() {
       </section>
 
       <CreateProducerForm />
+      <ManageTeamPanel />
       <ManageTracksPanel />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

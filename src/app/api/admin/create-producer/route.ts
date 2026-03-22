@@ -9,6 +9,7 @@ interface CreateProducerBody {
   password?: string;
   displayName?: string;
   artistName?: string;
+  role?: "producer" | "admin";
 }
 
 export async function POST(request: Request) {
@@ -33,14 +34,19 @@ export async function POST(request: Request) {
   const email = body?.email?.trim().toLowerCase();
   const password = body?.password?.trim();
   const displayName = body?.displayName?.trim();
-  const artistName = body?.artistName?.trim();
+  const artistName = body?.artistName?.trim() ?? "";
+  const role = body?.role === "admin" ? "admin" : "producer";
 
-  if (!email || !password || !displayName || !artistName) {
+  if (!email || !password || !displayName) {
     return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
   }
 
   if (password.length < 8) {
     return NextResponse.json({ error: "Password must be at least 8 characters." }, { status: 400 });
+  }
+
+  if (role === "producer" && artistName.length === 0) {
+    return NextResponse.json({ error: "Artist name is required for producer role." }, { status: 400 });
   }
 
   const adminClient = createSupabaseAdminClient();
@@ -68,7 +74,8 @@ export async function POST(request: Request) {
       id: userId,
       email,
       display_name: displayName,
-      role: "producer",
+      role,
+      is_active: true,
     },
     { onConflict: "id" },
   );
@@ -77,22 +84,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: profileError.message }, { status: 400 });
   }
 
-  const { error: producerError } = await adminClient.from("producers").upsert(
-    {
-      profile_id: userId,
-      artist_name: artistName,
-      genres: [],
-    },
-    { onConflict: "profile_id" },
-  );
+  if (role === "producer") {
+    const { error: producerError } = await adminClient.from("producers").upsert(
+      {
+        profile_id: userId,
+        artist_name: artistName,
+        genres: [],
+        is_active: true,
+      },
+      { onConflict: "profile_id" },
+    );
 
-  if (producerError) {
-    return NextResponse.json({ error: producerError.message }, { status: 400 });
+    if (producerError) {
+      return NextResponse.json({ error: producerError.message }, { status: 400 });
+    }
   }
 
   return NextResponse.json({
     ok: true,
     userId,
     email,
+    role,
   });
 }

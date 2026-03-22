@@ -10,6 +10,7 @@ create table if not exists profiles (
   bio text,
   avatar_url text,
   country text,
+  is_active boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -22,6 +23,7 @@ create table if not exists producers (
   rating numeric(2,1) not null default 0,
   total_sales integer not null default 0,
   response_time text,
+  is_active boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -178,7 +180,7 @@ alter table audit_logs enable row level security;
 
 create policy "Profiles are publicly readable"
 on profiles for select
-using (true);
+using (is_active = true or public.is_admin() or auth.role() = 'service_role');
 
 create policy "Users can insert their own profile"
 on profiles for insert
@@ -194,7 +196,7 @@ with check (id = auth.uid() or public.is_admin());
 
 create policy "Producers are publicly readable"
 on producers for select
-using (true);
+using (is_active = true or public.is_admin() or auth.role() = 'service_role');
 
 create policy "Producer owner or admin can insert producers"
 on producers for insert
@@ -208,7 +210,12 @@ with check (profile_id = auth.uid() or public.is_admin());
 create policy "Tracks are visible when published"
 on tracks for select
 using (
-  status = 'published'
+  (
+    status = 'published'
+    and exists (
+      select 1 from producers p where p.id = tracks.producer_id and p.is_active = true
+    )
+  )
   or public.is_admin()
   or exists (
     select 1 from producers p where p.id = tracks.producer_id and p.profile_id = auth.uid()

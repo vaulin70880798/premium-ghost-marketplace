@@ -3,7 +3,6 @@ import { ChevronRight } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import { TrackDetailClient } from "@/components/tracks/track-detail-client";
-import { producers, profiles } from "@/data/seed";
 import { trackRepository } from "@/lib/supabase/repositories";
 
 export default async function TrackDetailsPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -19,13 +18,8 @@ export default async function TrackDetailsPage({ params }: { params: Promise<{ s
     .filter((item) => item.id !== track.id && item.genre === track.genre && item.exclusivityStatus === "available")
     .slice(0, 3);
 
-  const producerName =
-    producers
-      .map((producer) => {
-        const profile = profiles.find((item) => item.id === producer.profileId);
-        return [producer.id, profile?.displayName ?? producer.artistName] as const;
-      })
-      .find(([id]) => id === track.producerId)?.[1] ?? "Verified Producer";
+  const producerMap = await trackRepository.getProducerNameMap([track.producerId]);
+  const producerName = producerMap[track.producerId] ?? "Verified Producer";
 
   return (
     <div className="space-y-6">

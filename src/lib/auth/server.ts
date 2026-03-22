@@ -69,9 +69,18 @@ export async function getAuthState(): Promise<AuthState> {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role, display_name")
+    .select("role, display_name, is_active")
     .eq("id", user.id)
     .maybeSingle();
+
+  if (profile?.is_active === false) {
+    return {
+      isConfigured: true,
+      user: null,
+      role: "buyer",
+      displayName: null,
+    };
+  }
 
   return {
     isConfigured: true,
