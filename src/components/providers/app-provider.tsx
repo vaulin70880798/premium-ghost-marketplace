@@ -3,6 +3,7 @@
 import type { User } from "@supabase/supabase-js";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
+import { DEMO_ADMIN_LOCAL_KEY } from "@/lib/auth/demo-admin";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { hasSupabaseEnv } from "@/lib/supabase/config";
 import type { UserRole } from "@/types/domain";
@@ -17,6 +18,7 @@ interface AppStateContextValue {
   authEmail: string | null;
   authReady: boolean;
   syncRoleFromProfile: () => Promise<void>;
+  activateDemoAdminSession: () => void;
   signOut: () => Promise<void>;
 }
 
@@ -57,12 +59,25 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       return "buyer";
     }
 
+    const hasDemoAdminSession = window.localStorage.getItem(DEMO_ADMIN_LOCAL_KEY) === "1";
     const storedRole = window.localStorage.getItem(ROLE_KEY) as UserRole | null;
+
+    if (!hasDemoAdminSession && storedRole === "admin") {
+      return "buyer";
+    }
+
     if (storedRole === "buyer" || storedRole === "producer" || storedRole === "admin") {
       return storedRole;
     }
 
     return "buyer";
+  });
+  const [demoAdminSession, setDemoAdminSession] = useState<boolean>(() => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+
+    return window.localStorage.getItem(DEMO_ADMIN_LOCAL_KEY) === "1";
   });
   const [authUser, setAuthUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(() => !hasSupabaseEnv());
@@ -113,7 +128,13 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       setAuthUser(session?.user ?? null);
 
       if (session?.user) {
+        setDemoAdminSession(false);
+        window.localStorage.removeItem(DEMO_ADMIN_LOCAL_KEY);
         await loadRoleFromProfile(session.user.id);
+        return;
+      }
+
+      if (demoAdminSession) {
         return;
       }
 
@@ -124,7 +145,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [loadRoleFromProfile]);
+  }, [demoAdminSession, loadRoleFromProfile]);
 
   const value = useMemo<AppStateContextValue>(
     () => ({
@@ -137,26 +158,35 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       isFavorite: (trackId: string) => favorites.includes(trackId),
       role,
       setRole,
-      isAuthenticated: Boolean(authUser),
-      authEmail: authUser?.email ?? null,
+      isAuthenticated: Boolean(authUser) || demoAdminSession,
+      authEmail: authUser?.email ?? (demoAdminSession ? "admin@ghostmarket.local" : null),
       authReady,
       syncRoleFromProfile: async () => {
-        if (!authUser) {
+        if (!authUser || demoAdminSession) {
           return;
         }
 
         await loadRoleFromProfile(authUser.id);
+      },
+      activateDemoAdminSession: () => {
+        window.localStorage.setItem(DEMO_ADMIN_LOCAL_KEY, "1");
+        setDemoAdminSession(true);
+        setRole("admin");
+        setAuthReady(true);
       },
       signOut: async () => {
         const supabase = getSupabaseBrowserClient();
         if (supabase) {
           await supabase.auth.signOut();
         }
+        await fetch("/api/auth/demo-admin-logout", { method: "POST" }).catch(() => undefined);
+        window.localStorage.removeItem(DEMO_ADMIN_LOCAL_KEY);
+        setDemoAdminSession(false);
         setAuthUser(null);
         setRole("buyer");
       },
     }),
-    [authReady, authUser, favorites, loadRoleFromProfile, role],
+    [authReady, authUser, demoAdminSession, favorites, loadRoleFromProfile, role],
   );
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;

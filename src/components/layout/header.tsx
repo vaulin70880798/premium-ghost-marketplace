@@ -56,9 +56,11 @@ export function Header() {
             <Heart className="h-4 w-4" />
             <span>{favorites.length}</span>
           </Link>
-          <Link href="/dashboard" className={buttonVariants({ variant: "outline", size: "sm" })}>
-            {authReady ? dashboardLabel : "Dashboard"}
-          </Link>
+          {isAuthenticated ? (
+            <Link href="/dashboard" className={buttonVariants({ variant: "outline", size: "sm" })}>
+              {authReady ? dashboardLabel : "Dashboard"}
+            </Link>
+          ) : null}
           {isAuthenticated ? (
             <Button
               variant="default"
@@ -107,13 +109,15 @@ export function Header() {
                   {item.label}
                 </Link>
               ))}
-              <Link
-                href="/dashboard"
-                onClick={() => setIsOpen(false)}
-                className="rounded-2xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-800"
-              >
-                Dashboard
-              </Link>
+              {isAuthenticated ? (
+                <Link
+                  href="/dashboard"
+                  onClick={() => setIsOpen(false)}
+                  className="rounded-2xl border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-800"
+                >
+                  Dashboard
+                </Link>
+              ) : null}
               <Link
                 href="/auth/sign-in"
                 onClick={() => setIsOpen(false)}

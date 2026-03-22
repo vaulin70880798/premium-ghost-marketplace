@@ -5,7 +5,7 @@ import { getAuthState } from "@/lib/auth/server";
 export default async function DashboardHubPage() {
   const auth = await getAuthState();
 
-  if (auth.isConfigured && !auth.user) {
+  if (!auth.user) {
     redirect("/auth/sign-in");
   }
 

@@ -21,8 +21,7 @@ export default function SignUpPage() {
     event.preventDefault();
 
     if (!hasSupabaseEnv()) {
-      toast.info("Supabase is not configured yet. Running demo mode.");
-      router.push("/dashboard");
+      toast.error("Supabase is not configured for buyer signup yet.");
       return;
     }
 

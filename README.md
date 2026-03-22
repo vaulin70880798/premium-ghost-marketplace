@@ -34,7 +34,11 @@ Behavior:
 - All public signups are created as `buyer`.
 - Only `admin` can create `producer` accounts.
 - Admin area is visible only to admin users.
-- Admin login can require an extra private code (`ADMIN_ACCESS_CODE`).
+
+Temporary bootstrap admin login (hardcoded for current phase):
+- Email: `admin@ghostmarket.local`
+- Password: `Admin#2026!`
+- Defined in `src/lib/auth/demo-admin.ts`
 
 ## Project structure
 ```text
@@ -110,7 +114,6 @@ Mocked in MVP:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `SUPABASE_SERVICE_ROLE_KEY` (server only)
-   - `ADMIN_ACCESS_CODE` (server only)
 6. Create one admin user:
    - Sign up normally first, then update `profiles.role = 'admin'` manually in Supabase SQL once.
 7. (Optional) seed tracks into `tracks` table; app falls back to local seed if DB is empty/unconfigured.

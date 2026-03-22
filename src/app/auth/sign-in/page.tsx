@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useAppState } from "@/components/providers/app-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { TEMP_ADMIN_EMAIL, TEMP_ADMIN_PASSWORD } from "@/lib/auth/demo-admin";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { hasSupabaseEnv } from "@/lib/supabase/config";
 
@@ -22,31 +23,59 @@ function parseRole(value: string | null | undefined): "buyer" | "producer" | "ad
 
 export default function SignInPage() {
   const router = useRouter();
-  const { syncRoleFromProfile } = useAppState();
+  const { syncRoleFromProfile, activateDemoAdminSession } = useAppState();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [adminCode, setAdminCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
 
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setIsSubmitting(true);
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedPassword = password.trim();
+
+    if (normalizedEmail === TEMP_ADMIN_EMAIL && normalizedPassword === TEMP_ADMIN_PASSWORD) {
+      const response = await fetch("/api/auth/demo-admin-login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: normalizedEmail,
+          password: normalizedPassword,
+        }),
+      });
+
+      if (!response.ok) {
+        setIsSubmitting(false);
+        toast.error("Temporary admin login failed.");
+        return;
+      }
+
+      activateDemoAdminSession();
+      setIsSubmitting(false);
+      toast.success("Admin signed in");
+      router.push("/admin");
+      router.refresh();
+      return;
+    }
 
     if (!hasSupabaseEnv()) {
-      toast.info("Supabase is not configured yet. Running demo mode.");
-      router.push("/dashboard");
+      setIsSubmitting(false);
+      toast.error("Supabase is not configured for regular user login yet.");
       return;
     }
 
     const supabase = getSupabaseBrowserClient();
     if (!supabase) {
+      setIsSubmitting(false);
       toast.error("Supabase client is unavailable.");
       return;
     }
 
-    setIsSubmitting(true);
-
-    const { error, data } = await supabase.auth.signInWithPassword({ email, password });
+    const { error, data } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password: normalizedPassword });
 
     if (error || !data.user) {
       setIsSubmitting(false);
@@ -58,28 +87,10 @@ export default function SignInPage() {
     const role = parseRole(profile?.role);
 
     if (role === "admin") {
-      if (!adminCode.trim()) {
-        await supabase.auth.signOut();
-        setIsSubmitting(false);
-        toast.error("Admin code is required for admin login.");
-        return;
-      }
-
-      const verifyResponse = await fetch("/api/auth/verify-admin-code", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ code: adminCode.trim() }),
-      });
-
-      if (!verifyResponse.ok) {
-        const payload = (await verifyResponse.json().catch(() => null)) as { error?: string } | null;
-        await supabase.auth.signOut();
-        setIsSubmitting(false);
-        toast.error(payload?.error ?? "Invalid admin code.");
-        return;
-      }
+      await supabase.auth.signOut();
+      setIsSubmitting(false);
+      toast.error("Admin access in this phase is only via the temporary admin credentials.");
+      return;
     }
 
     await syncRoleFromProfile();
@@ -158,16 +169,6 @@ export default function SignInPage() {
             required
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-          />
-        </label>
-
-        <label className="space-y-2 text-sm">
-          <span className="font-medium text-zinc-700">Admin Code (admins only)</span>
-          <Input
-            type="password"
-            placeholder="Private admin code"
-            value={adminCode}
-            onChange={(event) => setAdminCode(event.target.value)}
           />
         </label>
 
