@@ -14,6 +14,8 @@ import {
   testimonials,
 } from "@/data/seed";
 import { getFeaturedTracks, getNewestTracks } from "@/data/queries";
+import { genreArtworkTones } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 
 export default function HomePage() {
   const featuredTracks = getFeaturedTracks(3);
@@ -125,6 +127,21 @@ export default function HomePage() {
               href={`/tracks/${track.slug}`}
               className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-[0_20px_60px_rgba(12,20,38,0.06)] transition hover:-translate-y-0.5"
             >
+              <div
+                className={cn(
+                  "mb-4 h-32 rounded-2xl bg-gradient-to-br",
+                  track.artworkUrl?.trim() ? "bg-zinc-900" : genreArtworkTones[track.genre],
+                )}
+                style={
+                  track.artworkUrl?.trim()
+                    ? {
+                        backgroundImage: `url("${track.artworkUrl.trim().replace(/"/g, '\\"')}")`,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                      }
+                    : undefined
+                }
+              />
               <p className="text-xs uppercase tracking-[0.14em] text-zinc-500">{track.genre}</p>
               <h3 className="mt-2 text-xl font-semibold text-zinc-950">{track.title}</h3>
               <p className="mt-1 text-sm text-zinc-600">

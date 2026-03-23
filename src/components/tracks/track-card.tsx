@@ -22,26 +22,48 @@ interface TrackCardProps {
 export function TrackCard({ track, producerName, mode = "grid" }: TrackCardProps) {
   const { isFavorite, toggleFavorite } = useAppState();
   const favorited = isFavorite(track.id);
+  const artworkUrl = track.artworkUrl?.trim() ?? "";
+  const hasArtwork = artworkUrl.length > 0;
+  const artworkBackground = hasArtwork
+    ? {
+        backgroundImage: `url("${artworkUrl.replace(/"/g, '\\"')}")`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }
+    : undefined;
 
   const body = (
     <>
       <div
         className={cn(
           "relative overflow-hidden rounded-2xl border border-white/70 bg-gradient-to-br p-5",
-          genreArtworkTones[track.genre],
+          hasArtwork ? "bg-zinc-900" : genreArtworkTones[track.genre],
           mode === "list" ? "h-full min-h-40" : "h-40",
         )}
+        style={artworkBackground}
       >
-        <div className="absolute right-4 top-4 rounded-full bg-white/80 px-2 py-1 text-[10px] font-semibold tracking-wide text-zinc-700">
+        <div
+          className={cn(
+            "absolute right-4 top-4 rounded-full px-2 py-1 text-[10px] font-semibold tracking-wide",
+            hasArtwork ? "bg-black/45 text-white" : "bg-white/80 text-zinc-700",
+          )}
+        >
           {track.genre}
         </div>
-        <div className="absolute bottom-4 left-4 flex items-center gap-2 text-zinc-700">
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/80">
+        <div className={cn("absolute bottom-4 left-4 flex items-center gap-2", hasArtwork ? "text-white" : "text-zinc-700")}>
+          <span
+            className={cn(
+              "inline-flex h-8 w-8 items-center justify-center rounded-full",
+              hasArtwork ? "bg-black/45" : "bg-white/80",
+            )}
+          >
             <Music4 className="h-4 w-4" />
           </span>
           <div>
-            <p className="text-xs font-medium text-zinc-700">Exclusive Master</p>
-            <p className="text-xs text-zinc-500">{track.bpm} BPM · {track.musicalKey}</p>
+            <p className={cn("text-xs font-medium", hasArtwork ? "text-white/90" : "text-zinc-700")}>Exclusive Master</p>
+            <p className={cn("text-xs", hasArtwork ? "text-white/80" : "text-zinc-500")}>
+              {track.bpm} BPM · {track.musicalKey}
+            </p>
           </div>
         </div>
       </div>

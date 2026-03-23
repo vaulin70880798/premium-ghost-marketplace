@@ -23,6 +23,15 @@ export function TrackDetailClient({
 }) {
   const { isFavorite, toggleFavorite } = useAppState();
   const favorited = isFavorite(track.id);
+  const artworkUrl = track.artworkUrl?.trim() ?? "";
+  const hasArtwork = artworkUrl.length > 0;
+  const artworkBackground = hasArtwork
+    ? {
+        backgroundImage: `url("${artworkUrl.replace(/"/g, '\\"')}")`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }
+    : undefined;
 
   const includedFiles = [
     { label: "WAV", included: true },
@@ -38,11 +47,19 @@ export function TrackDetailClient({
     <div className="space-y-10">
       <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="space-y-5 rounded-3xl border border-zinc-200 bg-white p-6 shadow-[0_20px_60px_rgba(12,20,38,0.06)]">
-          <div className={cn("relative h-72 rounded-3xl bg-gradient-to-br", genreArtworkTones[track.genre])}>
+          <div
+            className={cn(
+              "relative h-72 rounded-3xl bg-gradient-to-br",
+              hasArtwork ? "bg-zinc-900" : genreArtworkTones[track.genre],
+            )}
+            style={artworkBackground}
+          >
             <div className="absolute bottom-6 left-6 space-y-1">
-              <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">Exclusive Release</p>
-              <h1 className="text-4xl font-semibold tracking-tight text-zinc-900">{track.title}</h1>
-              <p className="text-sm text-zinc-600">Produced by {producerName}</p>
+              <p className={cn("text-xs uppercase tracking-[0.18em]", hasArtwork ? "text-white/80" : "text-zinc-500")}>
+                Exclusive Release
+              </p>
+              <h1 className={cn("text-4xl font-semibold tracking-tight", hasArtwork ? "text-white" : "text-zinc-900")}>{track.title}</h1>
+              <p className={cn("text-sm", hasArtwork ? "text-white/90" : "text-zinc-600")}>Produced by {producerName}</p>
             </div>
           </div>
 
@@ -118,6 +135,21 @@ export function TrackDetailClient({
                 href={`/tracks/${item.slug}`}
                 className="rounded-3xl border border-zinc-200 bg-white p-4 shadow-[0_10px_40px_rgba(12,20,38,0.06)] transition hover:-translate-y-0.5"
               >
+                <div
+                  className={cn(
+                    "mb-3 h-28 rounded-2xl bg-gradient-to-br",
+                    item.artworkUrl?.trim() ? "bg-zinc-900" : genreArtworkTones[item.genre],
+                  )}
+                  style={
+                    item.artworkUrl?.trim()
+                      ? {
+                          backgroundImage: `url("${item.artworkUrl.trim().replace(/"/g, '\\"')}")`,
+                          backgroundSize: "cover",
+                          backgroundPosition: "center",
+                        }
+                      : undefined
+                  }
+                />
                 <p className="text-sm text-zinc-500">{item.genre}</p>
                 <p className="mt-1 text-lg font-semibold text-zinc-900">{item.title}</p>
                 <p className="mt-2 text-sm text-zinc-600">
