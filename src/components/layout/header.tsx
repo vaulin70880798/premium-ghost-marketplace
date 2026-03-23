@@ -1,11 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { Heart, LogOut, Menu, X } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { useAppState } from "@/components/providers/app-provider";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -14,8 +13,7 @@ import { cn } from "@/lib/utils";
 
 export function Header() {
   const pathname = usePathname();
-  const router = useRouter();
-  const { favorites, role, isAuthenticated, authReady, signOut, authEmail } = useAppState();
+  const { favorites, role, isAuthenticated, authReady, authEmail } = useAppState();
   const [isOpen, setIsOpen] = useState(false);
   const dashboardLabel =
     role === "buyer" ? "Buyer Dashboard" : role === "producer" ? "Producer Dashboard" : "Admin Dashboard";
@@ -62,21 +60,14 @@ export function Header() {
             </Link>
           ) : null}
           {isAuthenticated ? (
-            <Button
-              variant="default"
-              size="sm"
-              onClick={async () => {
-                await signOut();
-                toast.success("Signed out");
-                router.push("/");
-                router.refresh();
-              }}
-              className="gap-1"
+            <Link
+              href="/auth/sign-out"
+              className={cn(buttonVariants({ variant: "default", size: "sm" }), "gap-1")}
               title={authEmail ?? undefined}
             >
               <LogOut className="h-4 w-4" />
               Sign Out
-            </Button>
+            </Link>
           ) : (
             <Link href="/auth/sign-in" className={buttonVariants({ variant: "default", size: "sm" })}>
               Sign In
@@ -118,13 +109,24 @@ export function Header() {
                   Dashboard
                 </Link>
               ) : null}
-              <Link
-                href="/auth/sign-in"
-                onClick={() => setIsOpen(false)}
-                className="rounded-2xl bg-zinc-950 px-3 py-2 text-sm font-semibold text-white"
-              >
-                {isAuthenticated ? "Account" : "Sign In"}
-              </Link>
+
+              {isAuthenticated ? (
+                <Link
+                  href="/auth/sign-out"
+                  onClick={() => setIsOpen(false)}
+                  className="rounded-2xl bg-zinc-950 px-3 py-2 text-sm font-semibold text-white"
+                >
+                  Sign Out
+                </Link>
+              ) : (
+                <Link
+                  href="/auth/sign-in"
+                  onClick={() => setIsOpen(false)}
+                  className="rounded-2xl bg-zinc-950 px-3 py-2 text-sm font-semibold text-white"
+                >
+                  Sign In
+                </Link>
+              )}
             </div>
           </motion.div>
         ) : null}
