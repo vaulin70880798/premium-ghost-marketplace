@@ -123,11 +123,16 @@ async function requireAdmin() {
   const auth = await getAuthState();
 
   if (!auth.user) {
-    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    return NextResponse.json({ error: "Admin session expired. Please sign in again." }, { status: 401 });
   }
 
   if (auth.role !== "admin") {
-    return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+    return NextResponse.json(
+      {
+        error: `Only admins can upload tracks. Current role: ${auth.role}.`,
+      },
+      { status: 403 },
+    );
   }
 
   return null;

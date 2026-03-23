@@ -52,9 +52,9 @@ export function CreateProducerForm() {
 
   return (
     <form onSubmit={onSubmit} className="space-y-3 rounded-3xl border border-zinc-200 bg-white p-5 shadow-[0_16px_48px_rgba(12,20,38,0.06)]">
-      <h2 className="text-lg font-semibold text-zinc-900">Create Team Member</h2>
+      <h2 className="text-lg font-semibold text-zinc-900">Add Producer / Team Member</h2>
       <p className="text-sm text-zinc-600">
-        Admin-only onboarding. Create producer/admin users and manage them from team controls.
+        Admin-only onboarding flow for new producer or admin accounts.
       </p>
 
       <label className="space-y-1.5 text-sm">

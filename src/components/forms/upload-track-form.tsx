@@ -96,6 +96,9 @@ export function UploadTrackForm() {
 
       if (!response.ok || !payload) {
         toast.error(payload?.error ?? "Could not load producers.");
+        if (response.status === 401 || response.status === 403) {
+          router.push("/auth/sign-in");
+        }
         return;
       }
 
@@ -114,7 +117,7 @@ export function UploadTrackForm() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [router]);
 
   const producerSelectDisabled = isLoadingProducers || producers.length === 0 || !isWritable;
   const hasRequiredFiles = Boolean(files.artworkFile && files.previewFile && files.packageZipFile);
@@ -301,6 +304,9 @@ export function UploadTrackForm() {
 
     if (!response.ok || !payload) {
       toast.error(payload?.error ?? "Upload failed.");
+      if (response.status === 401 || response.status === 403) {
+        router.push("/auth/sign-in");
+      }
       return;
     }
 

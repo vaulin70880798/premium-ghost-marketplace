@@ -7,17 +7,19 @@ import { hasSupabaseAdminEnv } from "@/lib/supabase/config";
 interface TeamMemberPatchBody {
   profileId?: string;
   isActive?: boolean;
+  role?: "producer" | "admin";
+  artistName?: string;
 }
 
 async function requireAdmin() {
   const auth = await getAuthState();
 
   if (!auth.user) {
-    return { auth, response: NextResponse.json({ error: "Unauthorized." }, { status: 401 }) };
+    return { auth, response: NextResponse.json({ error: "Admin session expired. Please sign in again." }, { status: 401 }) };
   }
 
   if (auth.role !== "admin") {
-    return { auth, response: NextResponse.json({ error: "Forbidden." }, { status: 403 }) };
+    return { auth, response: NextResponse.json({ error: "Only admins can manage team access." }, { status: 403 }) };
   }
 
   return { auth, response: null };
@@ -84,8 +86,10 @@ export async function PATCH(request: Request) {
   const body = (await request.json().catch(() => null)) as TeamMemberPatchBody | null;
   const profileId = body?.profileId?.trim();
   const isActive = body?.isActive;
+  const nextRole = body?.role === "producer" ? "producer" : body?.role === "admin" ? "admin" : null;
+  const artistName = body?.artistName?.trim();
 
-  if (!profileId || typeof isActive !== "boolean") {
+  if (!profileId || (typeof isActive !== "boolean" && !nextRole)) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
@@ -93,11 +97,15 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "You cannot deactivate your own admin account." }, { status: 400 });
   }
 
+  if (auth.user?.id === profileId && nextRole && nextRole !== "admin") {
+    return NextResponse.json({ error: "You cannot remove your own admin role." }, { status: 400 });
+  }
+
   const adminClient = createSupabaseAdminClient();
 
   const { data: profile, error: profileError } = await adminClient
     .from("profiles")
-    .select("id, role")
+    .select("id, role, display_name, is_active")
     .eq("id", profileId)
     .maybeSingle();
 
@@ -105,22 +113,50 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Team member not found." }, { status: 404 });
   }
 
-  const { error: updateProfileError } = await adminClient
-    .from("profiles")
-    .update({ is_active: isActive, updated_at: new Date().toISOString() })
-    .eq("id", profileId);
+  const profileUpdatePayload: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+  };
+
+  if (typeof isActive === "boolean") {
+    profileUpdatePayload.is_active = isActive;
+  }
+
+  if (nextRole) {
+    profileUpdatePayload.role = nextRole;
+  }
+
+  const { error: updateProfileError } = await adminClient.from("profiles").update(profileUpdatePayload).eq("id", profileId);
 
   if (updateProfileError) {
     return NextResponse.json({ error: updateProfileError.message }, { status: 400 });
   }
 
-  if (profile.role === "producer") {
+  const effectiveIsActive = typeof isActive === "boolean" ? isActive : profile.is_active !== false;
+  const effectiveRole = nextRole ?? profile.role;
+
+  if (effectiveRole === "producer") {
+    const producerArtistName = artistName || profile.display_name || "Producer";
+    const { error: upsertProducerError } = await adminClient.from("producers").upsert(
+      {
+        profile_id: profileId,
+        artist_name: producerArtistName,
+        is_active: effectiveIsActive,
+      },
+      { onConflict: "profile_id" },
+    );
+
+    if (upsertProducerError) {
+      return NextResponse.json({ error: upsertProducerError.message }, { status: 400 });
+    }
+  }
+
+  if (effectiveRole === "admin") {
     const { error: updateProducerError } = await adminClient
       .from("producers")
-      .update({ is_active: isActive, updated_at: new Date().toISOString() })
+      .update({ is_active: false, updated_at: new Date().toISOString() })
       .eq("profile_id", profileId);
 
-    if (updateProducerError) {
+    if (updateProducerError && !updateProducerError.message.toLowerCase().includes("no rows")) {
       return NextResponse.json({ error: updateProducerError.message }, { status: 400 });
     }
   }

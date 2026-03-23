@@ -1,12 +1,13 @@
 "use client";
 
-import { Download, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { Download, PencilLine, RotateCcw, Save, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency } from "@/lib/utils";
 
 type AdminTrack = {
@@ -18,6 +19,7 @@ type AdminTrack = {
   bpm: number;
   musicalKey: string;
   mood: string;
+  description: string;
   price: number;
   previewUrl: string | null;
   artworkUrl: string | null;
@@ -27,17 +29,23 @@ type AdminTrack = {
   createdAt: string;
 };
 
-type ProducerOption = {
-  id: string;
-  artistName: string;
-};
-
 type TracksResponsePayload = {
   tracks?: AdminTrack[];
-  producers?: ProducerOption[];
   writable?: boolean;
   error?: string;
   message?: string;
+};
+
+type TrackEditForm = {
+  title: string;
+  genre: string;
+  bpm: number;
+  musicalKey: string;
+  mood: string;
+  description: string;
+  price: number;
+  previewUrl: string;
+  packageUrl: string;
 };
 
 const genreOptions = [
@@ -50,7 +58,9 @@ const genreOptions = [
   "Garage",
   "Other",
 ];
+
 const moodOptions = ["Euphoric", "Dark", "Hypnotic", "Atmospheric", "Groovy", "Cinematic", "Emotional"];
+
 const keyOptions = [
   "A minor",
   "B minor",
@@ -66,36 +76,46 @@ const keyOptions = [
   "G major",
 ];
 
+function toEditForm(track: AdminTrack): TrackEditForm {
+  return {
+    title: track.title,
+    genre: track.genre,
+    bpm: track.bpm,
+    musicalKey: track.musicalKey,
+    mood: track.mood,
+    description: track.description ?? "",
+    price: track.price,
+    previewUrl: track.previewUrl ?? "",
+    packageUrl: track.packageUrl ?? "",
+  };
+}
+
 export function ManageTracksPanel() {
   const [tracks, setTracks] = useState<AdminTrack[]>([]);
-  const [producers, setProducers] = useState<ProducerOption[]>([]);
   const [writable, setWritable] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
-  const [title, setTitle] = useState("");
-  const [producerId, setProducerId] = useState("");
-  const [genre, setGenre] = useState("Melodic Techno");
-  const [bpm, setBpm] = useState(124);
-  const [musicalKey, setMusicalKey] = useState("A minor");
-  const [mood, setMood] = useState("Atmospheric");
-  const [price, setPrice] = useState(990);
-  const [previewUrl, setPreviewUrl] = useState("");
-  const [packageUrl, setPackageUrl] = useState("");
+  const [editingTrackId, setEditingTrackId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<TrackEditForm>({
+    title: "",
+    genre: "Melodic Techno",
+    bpm: 124,
+    musicalKey: "A minor",
+    mood: "Atmospheric",
+    description: "",
+    price: 990,
+    previewUrl: "",
+    packageUrl: "",
+  });
 
   const applyPayload = (payload: TracksResponsePayload) => {
     if (payload.message) {
       toast.info(payload.message);
     }
 
-    const nextProducers = payload.producers ?? [];
     setTracks(payload.tracks ?? []);
-    setProducers(nextProducers);
     setWritable(Boolean(payload.writable));
-
-    if (nextProducers.length > 0) {
-      setProducerId((current) => current || nextProducers[0].id);
-    }
   };
 
   const loadData = async () => {
@@ -108,6 +128,9 @@ export function ManageTracksPanel() {
 
     if (!response.ok || !payload) {
       toast.error(payload?.error ?? "Could not load admin tracks.");
+      if (response.status === 401 || response.status === 403) {
+        window.location.assign("/auth/sign-in");
+      }
       return;
     }
 
@@ -115,13 +138,13 @@ export function ManageTracksPanel() {
   };
 
   useEffect(() => {
-    let isMounted = true;
+    let mounted = true;
 
     const initialize = async () => {
       const response = await fetch("/api/admin/tracks", { method: "GET" });
       const payload = (await response.json().catch(() => null)) as TracksResponsePayload | null;
 
-      if (!isMounted) {
+      if (!mounted) {
         return;
       }
 
@@ -129,6 +152,9 @@ export function ManageTracksPanel() {
 
       if (!response.ok || !payload) {
         toast.error(payload?.error ?? "Could not load admin tracks.");
+        if (response.status === 401 || response.status === 403) {
+          window.location.assign("/auth/sign-in");
+        }
         return;
       }
 
@@ -138,55 +164,9 @@ export function ManageTracksPanel() {
     void initialize();
 
     return () => {
-      isMounted = false;
+      mounted = false;
     };
   }, []);
-
-  const createTrack = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    if (!producerId) {
-      toast.error("Please select producer.");
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    const response = await fetch("/api/admin/tracks", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        title,
-        producerId,
-        genre,
-        bpm,
-        musicalKey,
-        mood,
-        price,
-        previewUrl,
-        packageUrl,
-        status: "published",
-        exclusivityStatus: "available",
-        durationSeconds: 180,
-      }),
-    });
-
-    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-    setIsSubmitting(false);
-
-    if (!response.ok) {
-      toast.error(payload?.error ?? "Could not create track.");
-      return;
-    }
-
-    toast.success("Track created.");
-    setTitle("");
-    setPreviewUrl("");
-    setPackageUrl("");
-    await loadData();
-  };
 
   const toggleArchivedState = async (track: AdminTrack) => {
     const response =
@@ -206,7 +186,11 @@ export function ManageTracksPanel() {
       return;
     }
 
-    toast.success(track.status === "rejected" ? "Track restored to draft." : "Track archived.");
+    if (editingTrackId === track.id) {
+      setEditingTrackId(null);
+    }
+
+    toast.success(track.status === "rejected" ? "Song restored to draft." : "Song archived.");
     await loadData();
   };
 
@@ -228,7 +212,7 @@ export function ManageTracksPanel() {
       return;
     }
 
-    toast.success(`Track moved to ${nextStatus}.`);
+    toast.success(`Song moved to ${nextStatus}.`);
     await loadData();
   };
 
@@ -250,123 +234,72 @@ export function ManageTracksPanel() {
       return;
     }
 
-    toast.success(`Track marked as ${next}.`);
+    toast.success(`Song marked as ${next}.`);
+    await loadData();
+  };
+
+  const startEdit = (track: AdminTrack) => {
+    setEditingTrackId(track.id);
+    setEditForm(toEditForm(track));
+  };
+
+  const cancelEdit = () => {
+    setEditingTrackId(null);
+  };
+
+  const saveEdit = async (trackId: string) => {
+    setIsSavingEdit(true);
+
+    const response = await fetch(`/api/admin/tracks/${trackId}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        title: editForm.title,
+        genre: editForm.genre,
+        bpm: Number(editForm.bpm),
+        musicalKey: editForm.musicalKey,
+        mood: editForm.mood,
+        description: editForm.description,
+        price: Number(editForm.price),
+        previewUrl: editForm.previewUrl,
+        packageUrl: editForm.packageUrl,
+      }),
+    });
+
+    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+    setIsSavingEdit(false);
+
+    if (!response.ok) {
+      toast.error(payload?.error ?? "Could not save song changes.");
+      return;
+    }
+
+    toast.success("Song updated.");
+    setEditingTrackId(null);
     await loadData();
   };
 
   return (
-    <section className="space-y-6">
-      <form onSubmit={createTrack} className="space-y-4 rounded-3xl border border-zinc-200 bg-white p-5 shadow-[0_16px_48px_rgba(12,20,38,0.06)]">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-zinc-900">Add Track (Admin Only)</h2>
-          <Badge>{writable ? "Live DB" : "Read-only demo"}</Badge>
-        </div>
+    <section className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-[0_16px_48px_rgba(12,20,38,0.06)]">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-zinc-900">Manage Existing Songs</h2>
+        <Badge>{writable ? "Live DB" : "Read-only demo"}</Badge>
+      </div>
 
-        <div className="grid gap-3 md:grid-cols-2">
-          <label className="space-y-1.5 text-sm">
-            <span className="text-zinc-700">Track title</span>
-            <Input required value={title} onChange={(event) => setTitle(event.target.value)} disabled={!writable} />
-          </label>
+      <p className="mt-2 text-sm text-zinc-600">Edit metadata, switch availability, publish/draft, and archive or restore songs.</p>
 
-          <label className="space-y-1.5 text-sm">
-            <span className="text-zinc-700">Producer</span>
-            <select
-              value={producerId}
-              onChange={(event) => setProducerId(event.target.value)}
-              disabled={!writable}
-              className="h-11 w-full rounded-2xl border border-zinc-200 bg-white px-3 text-sm"
-            >
-              {producers.map((producer) => (
-                <option key={producer.id} value={producer.id}>
-                  {producer.artistName}
-                </option>
-              ))}
-            </select>
-          </label>
+      {isLoading ? <p className="mt-4 text-sm text-zinc-500">Loading songs...</p> : null}
 
-          <label className="space-y-1.5 text-sm">
-            <span className="text-zinc-700">Genre</span>
-            <select
-              value={genre}
-              onChange={(event) => setGenre(event.target.value)}
-              disabled={!writable}
-              className="h-11 w-full rounded-2xl border border-zinc-200 bg-white px-3 text-sm"
-            >
-              {genreOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </label>
+      {!isLoading ? (
+        <div className="mt-4 space-y-3">
+          {tracks.length === 0 ? <p className="text-sm text-zinc-500">No songs found.</p> : null}
 
-          <label className="space-y-1.5 text-sm">
-            <span className="text-zinc-700">Mood</span>
-            <select
-              value={mood}
-              onChange={(event) => setMood(event.target.value)}
-              disabled={!writable}
-              className="h-11 w-full rounded-2xl border border-zinc-200 bg-white px-3 text-sm"
-            >
-              {moodOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </label>
+          {tracks.map((track) => {
+            const isEditing = editingTrackId === track.id;
 
-          <label className="space-y-1.5 text-sm">
-            <span className="text-zinc-700">BPM</span>
-            <Input type="number" required value={bpm} onChange={(event) => setBpm(Number(event.target.value))} disabled={!writable} />
-          </label>
-
-          <label className="space-y-1.5 text-sm">
-            <span className="text-zinc-700">Musical key</span>
-            <select
-              value={musicalKey}
-              onChange={(event) => setMusicalKey(event.target.value)}
-              disabled={!writable}
-              className="h-11 w-full rounded-2xl border border-zinc-200 bg-white px-3 text-sm"
-            >
-              {keyOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="space-y-1.5 text-sm">
-            <span className="text-zinc-700">Price (USD)</span>
-            <Input type="number" required value={price} onChange={(event) => setPrice(Number(event.target.value))} disabled={!writable} />
-          </label>
-
-          <label className="space-y-1.5 text-sm">
-            <span className="text-zinc-700">Preview URL</span>
-            <Input value={previewUrl} onChange={(event) => setPreviewUrl(event.target.value)} disabled={!writable} />
-          </label>
-
-          <label className="space-y-1.5 text-sm md:col-span-2">
-            <span className="text-zinc-700">Package URL (ZIP / storage link)</span>
-            <Input value={packageUrl} onChange={(event) => setPackageUrl(event.target.value)} disabled={!writable} />
-          </label>
-        </div>
-
-        <Button type="submit" disabled={!writable || isSubmitting}>
-          <Plus className="mr-2 h-4 w-4" />
-          {isSubmitting ? "Adding..." : "Add Track"}
-        </Button>
-      </form>
-
-      <div className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-[0_16px_48px_rgba(12,20,38,0.06)]">
-        <h2 className="text-lg font-semibold text-zinc-900">Track Management</h2>
-
-        {isLoading ? <p className="mt-3 text-sm text-zinc-500">Loading tracks...</p> : null}
-
-        {!isLoading ? (
-          <div className="mt-4 space-y-3">
-            {tracks.map((track) => (
+            return (
               <article key={track.id} className="rounded-2xl border border-zinc-200 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
@@ -376,18 +309,158 @@ export function ManageTracksPanel() {
                     </p>
                     <p className="mt-1 text-xs text-zinc-500">{formatCurrency(track.price)}</p>
                   </div>
+
                   <div className="flex flex-wrap gap-2">
                     <Badge>{track.status}</Badge>
                     <Badge>{track.exclusivityStatus}</Badge>
                   </div>
                 </div>
 
+                {isEditing ? (
+                  <div className="mt-4 space-y-3 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <label className="space-y-1.5 text-sm">
+                        <span className="text-zinc-700">Title</span>
+                        <Input
+                          value={editForm.title}
+                          onChange={(event) => setEditForm((current) => ({ ...current, title: event.target.value }))}
+                        />
+                      </label>
+
+                      <label className="space-y-1.5 text-sm">
+                        <span className="text-zinc-700">Genre</span>
+                        <select
+                          value={editForm.genre}
+                          onChange={(event) => setEditForm((current) => ({ ...current, genre: event.target.value }))}
+                          className="h-11 w-full rounded-2xl border border-zinc-200 bg-white px-3 text-sm"
+                        >
+                          {genreOptions.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <label className="space-y-1.5 text-sm">
+                        <span className="text-zinc-700">Mood</span>
+                        <select
+                          value={editForm.mood}
+                          onChange={(event) => setEditForm((current) => ({ ...current, mood: event.target.value }))}
+                          className="h-11 w-full rounded-2xl border border-zinc-200 bg-white px-3 text-sm"
+                        >
+                          {moodOptions.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <label className="space-y-1.5 text-sm">
+                        <span className="text-zinc-700">Musical Key</span>
+                        <select
+                          value={editForm.musicalKey}
+                          onChange={(event) =>
+                            setEditForm((current) => ({
+                              ...current,
+                              musicalKey: event.target.value,
+                            }))
+                          }
+                          className="h-11 w-full rounded-2xl border border-zinc-200 bg-white px-3 text-sm"
+                        >
+                          {keyOptions.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <label className="space-y-1.5 text-sm">
+                        <span className="text-zinc-700">BPM</span>
+                        <Input
+                          type="number"
+                          min={60}
+                          max={220}
+                          value={editForm.bpm}
+                          onChange={(event) =>
+                            setEditForm((current) => ({ ...current, bpm: Number(event.target.value) || current.bpm }))
+                          }
+                        />
+                      </label>
+
+                      <label className="space-y-1.5 text-sm">
+                        <span className="text-zinc-700">Price (USD)</span>
+                        <Input
+                          type="number"
+                          min={1}
+                          value={editForm.price}
+                          onChange={(event) =>
+                            setEditForm((current) => ({ ...current, price: Number(event.target.value) || current.price }))
+                          }
+                        />
+                      </label>
+
+                      <label className="space-y-1.5 text-sm">
+                        <span className="text-zinc-700">Preview URL</span>
+                        <Input
+                          value={editForm.previewUrl}
+                          onChange={(event) => setEditForm((current) => ({ ...current, previewUrl: event.target.value }))}
+                        />
+                      </label>
+
+                      <label className="space-y-1.5 text-sm">
+                        <span className="text-zinc-700">Package URL</span>
+                        <Input
+                          value={editForm.packageUrl}
+                          onChange={(event) => setEditForm((current) => ({ ...current, packageUrl: event.target.value }))}
+                        />
+                      </label>
+                    </div>
+
+                    <label className="space-y-1.5 text-sm">
+                      <span className="text-zinc-700">Description</span>
+                      <Textarea
+                        value={editForm.description}
+                        onChange={(event) =>
+                          setEditForm((current) => ({
+                            ...current,
+                            description: event.target.value,
+                          }))
+                        }
+                      />
+                    </label>
+
+                    <div className="flex flex-wrap gap-2">
+                      <Button type="button" size="sm" onClick={() => void saveEdit(track.id)} disabled={isSavingEdit}>
+                        <Save className="mr-1 h-3.5 w-3.5" />
+                        {isSavingEdit ? "Saving..." : "Save Changes"}
+                      </Button>
+
+                      <Button type="button" variant="outline" size="sm" onClick={cancelEdit}>
+                        <X className="mr-1 h-3.5 w-3.5" />
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+
                 <div className="mt-4 flex flex-wrap gap-2">
                   <a
                     href={track.previewUrl ?? "#"}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700"
+                    className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-medium ${
+                      track.previewUrl
+                        ? "border-zinc-200 text-zinc-700"
+                        : "cursor-not-allowed border-zinc-100 text-zinc-400"
+                    }`}
+                    onClick={(event) => {
+                      if (!track.previewUrl) {
+                        event.preventDefault();
+                      }
+                    }}
                   >
                     <Download className="mr-1 h-3.5 w-3.5" />
                     Preview
@@ -411,6 +484,15 @@ export function ManageTracksPanel() {
                     <Download className="mr-1 h-3.5 w-3.5" />
                     Package
                   </a>
+
+                  <button
+                    type="button"
+                    onClick={() => startEdit(track)}
+                    className="inline-flex items-center rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700"
+                  >
+                    <PencilLine className="mr-1 h-3.5 w-3.5" />
+                    Edit Metadata
+                  </button>
 
                   {track.status !== "rejected" ? (
                     <button
@@ -444,10 +526,10 @@ export function ManageTracksPanel() {
                   </button>
                 </div>
               </article>
-            ))}
-          </div>
-        ) : null}
-      </div>
+            );
+          })}
+        </div>
+      ) : null}
     </section>
   );
 }

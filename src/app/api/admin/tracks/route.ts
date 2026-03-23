@@ -17,6 +17,7 @@ type AdminTrack = {
   bpm: number;
   musicalKey: string;
   mood: string;
+  description: string;
   price: number;
   previewUrl: string | null;
   artworkUrl: string | null;
@@ -74,6 +75,7 @@ function seedFallback() {
     bpm: track.bpm,
     musicalKey: track.musicalKey,
     mood: track.mood,
+    description: track.description,
     price: track.price,
     previewUrl: track.previewUrl,
     artworkUrl: track.artworkUrl,
@@ -95,11 +97,16 @@ async function requireAdmin() {
   const auth = await getAuthState();
 
   if (!auth.user) {
-    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    return NextResponse.json({ error: "Admin session expired. Please sign in again." }, { status: 401 });
   }
 
   if (auth.role !== "admin") {
-    return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+    return NextResponse.json(
+      {
+        error: `Only admins can manage tracks. Current role: ${auth.role}.`,
+      },
+      { status: 403 },
+    );
   }
 
   return null;
@@ -154,6 +161,7 @@ export async function GET() {
     bpm: row.bpm,
     musicalKey: row.musical_key,
     mood: row.mood,
+    description: row.description ?? "",
     price: row.price,
     previewUrl: row.preview_url ?? null,
     artworkUrl: row.artwork_url ?? null,
