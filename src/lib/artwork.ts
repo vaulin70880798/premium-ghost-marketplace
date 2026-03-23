@@ -5,6 +5,10 @@ const fallbackArtworks = [
   "/artworks/fallback-4.jpg",
 ] as const;
 
+function isLegacyArtworkPath(url: string) {
+  return /^\/artworks\/\d+\.jpg$/i.test(url);
+}
+
 function stableIndexFromKey(key: string | number, size: number) {
   const value = String(key);
   let hash = 0;
@@ -23,7 +27,7 @@ export function getFallbackArtworkByKey(key: string | number) {
 
 export function resolveArtworkUrl(url: string | null | undefined, key: string | number) {
   const trimmed = typeof url === "string" ? url.trim() : "";
-  if (trimmed.length > 0) {
+  if (trimmed.length > 0 && !isLegacyArtworkPath(trimmed)) {
     return trimmed;
   }
 
