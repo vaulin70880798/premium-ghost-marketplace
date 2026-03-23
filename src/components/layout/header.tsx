@@ -62,6 +62,7 @@ export function Header() {
           {isAuthenticated ? (
             <Link
               href="/auth/sign-out"
+              prefetch={false}
               className={cn(buttonVariants({ variant: "default", size: "sm" }), "gap-1")}
               title={authEmail ?? undefined}
             >
@@ -113,6 +114,7 @@ export function Header() {
               {isAuthenticated ? (
                 <Link
                   href="/auth/sign-out"
+                  prefetch={false}
                   onClick={() => setIsOpen(false)}
                   className="rounded-2xl bg-zinc-950 px-3 py-2 text-sm font-semibold text-white"
                 >

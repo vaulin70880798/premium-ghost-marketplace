@@ -52,7 +52,9 @@ export function AdminWorkspace() {
           </p>
           <div className="mt-4">
             <Button asChild>
-              <Link href="/upload">Open Upload Studio</Link>
+              <Link href="/upload" prefetch={false}>
+                Open Upload Studio
+              </Link>
             </Button>
           </div>
         </section>
