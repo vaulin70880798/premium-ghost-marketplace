@@ -139,6 +139,23 @@ Mocked in MVP:
    - Sign up normally first, then update `profiles.role = 'admin'` manually in Supabase SQL once.
 7. (Optional) seed tracks into `tracks` table; app falls back to local seed if DB is empty/unconfigured.
 
+### Privacy hardening (recommended for existing projects)
+If your database was initialized with older policies, run this once in Supabase SQL editor:
+
+```sql
+drop policy if exists "Profiles are publicly readable" on public.profiles;
+drop policy if exists "Profiles are self/admin readable" on public.profiles;
+
+create policy "Profiles are self/admin readable"
+on public.profiles
+for select
+using (
+  id = auth.uid()
+  or public.is_admin()
+  or auth.role() = 'service_role'
+);
+```
+
 ## Local development
 ```bash
 npm install

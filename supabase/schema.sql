@@ -178,9 +178,13 @@ alter table reviews enable row level security;
 alter table payouts enable row level security;
 alter table audit_logs enable row level security;
 
-create policy "Profiles are publicly readable"
+create policy "Profiles are self/admin readable"
 on profiles for select
-using (is_active = true or public.is_admin() or auth.role() = 'service_role');
+using (
+  id = auth.uid()
+  or public.is_admin()
+  or auth.role() = 'service_role'
+);
 
 create policy "Users can insert their own profile"
 on profiles for insert
