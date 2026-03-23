@@ -1,4 +1,5 @@
 import { producers as seedProducers, profiles as seedProfiles, tracks as seedTracks } from "@/data/seed";
+import { resolveArtworkUrl } from "@/lib/artwork";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hasSupabaseEnv } from "@/lib/supabase/config";
 import type { Track } from "@/types/domain";
@@ -41,7 +42,7 @@ function toTrack(row: DbTrackRow): Track {
     mood: row.mood,
     description: row.description ?? "",
     price: row.price,
-    artworkUrl: row.artwork_url ?? "/artworks/1.jpg",
+    artworkUrl: resolveArtworkUrl(row.artwork_url, row.id),
     previewUrl: row.preview_url ?? "/previews/1.mp3",
     hasStems: row.has_stems,
     hasMidi: row.has_midi,

@@ -12,6 +12,7 @@ import type {
   TrackFile,
   User,
 } from "@/types/domain";
+import { getFallbackArtworkByKey } from "@/lib/artwork";
 
 export const users: User[] = [
   { id: "usr_buyer_01", email: "buyer@demo.com", role: "buyer" },
@@ -153,7 +154,7 @@ function track(
     description:
       "A release-ready ghost production with premium mixdown, arrangement details, and full ownership transfer after purchase.",
     price,
-    artworkUrl: `/artworks/${id}.jpg`,
+    artworkUrl: getFallbackArtworkByKey(id),
     previewUrl: cc0PreviewFiles[(id - 1) % cc0PreviewFiles.length],
     hasStems: options?.hasStems ?? true,
     hasMidi: options?.hasMidi ?? true,

@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 
 import { tracks as seedTracks, producers as seedProducers } from "@/data/seed";
 import { getAuthState } from "@/lib/auth/server";
+import { resolveArtworkUrl } from "@/lib/artwork";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { hasSupabaseAdminEnv, hasSupabaseEnv } from "@/lib/supabase/config";
 import type { Track } from "@/types/domain";
@@ -164,7 +165,7 @@ export async function GET() {
     description: row.description ?? "",
     price: row.price,
     previewUrl: row.preview_url ?? null,
-    artworkUrl: row.artwork_url ?? null,
+    artworkUrl: resolveArtworkUrl(row.artwork_url, row.id),
     packageUrl: row.package_url ?? null,
     exclusivityStatus: row.exclusivity_status,
     status: row.status,
@@ -270,7 +271,7 @@ export async function POST(request: Request) {
     mood: data.mood,
     description: data.description ?? "",
     price: data.price,
-    artworkUrl: data.artwork_url ?? "/artworks/1.jpg",
+    artworkUrl: resolveArtworkUrl(data.artwork_url, data.id),
     previewUrl: data.preview_url ?? "/previews/1.mp3",
     hasStems: data.has_stems,
     hasMidi: data.has_midi,
