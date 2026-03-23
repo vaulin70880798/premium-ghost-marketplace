@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 const deliverables = ["WAV", "Stems", "MIDI", "Master", "Unmastered", "Extended Mix", "Radio Edit"];
 const genreOptions = ["Melodic Techno", "Tech House", "Afro House", "Deep House", "Progressive House", "Drum & Bass", "Garage", "Other"];
@@ -49,6 +50,22 @@ const initialFiles: UploadFileState = {
 function hasExtension(file: File, extensions: string[]) {
   const extension = file.name.split(".").at(-1)?.toLowerCase() ?? "";
   return extensions.includes(extension);
+}
+
+async function extractApiError(response: Response) {
+  const contentType = response.headers.get("content-type") ?? "";
+
+  if (contentType.includes("application/json")) {
+    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+    return payload?.error ?? null;
+  }
+
+  const text = await response.text().catch(() => "");
+  if (response.status === 413) {
+    return "Upload is too large for this request. Please try again with smaller files.";
+  }
+
+  return text.trim().slice(0, 180) || null;
 }
 
 export function UploadTrackForm() {
@@ -263,48 +280,116 @@ export function UploadTrackForm() {
       return;
     }
 
-    const formData = new FormData();
-    formData.append("title", title.trim());
-    formData.append("producerId", producerId);
-    formData.append("genre", genre.trim());
-    formData.append("bpm", String(bpm));
-    formData.append("musicalKey", musicalKey.trim());
-    formData.append("mood", mood.trim());
-    formData.append("description", description.trim());
-    formData.append("price", String(price));
-    formData.append("durationSeconds", String(durationSeconds));
-    formData.append("tags", tags.trim());
-    formData.append("exclusiveSale", String(exclusiveSale));
-    formData.append("hasStems", String(selectedDeliverables.includes("Stems")));
-    formData.append("hasMidi", String(selectedDeliverables.includes("MIDI")));
-    formData.append("hasMaster", String(selectedDeliverables.includes("Master") || selectedDeliverables.includes("WAV")));
-    formData.append("hasUnmastered", String(selectedDeliverables.includes("Unmastered")));
-    formData.append("hasExtendedMix", String(selectedDeliverables.includes("Extended Mix")));
-    formData.append("hasRadioEdit", String(selectedDeliverables.includes("Radio Edit")));
-
-    (Object.keys(files) as Array<keyof UploadFileState>).forEach((key) => {
-      const file = files[key];
-      if (file) {
-        formData.append(key, file);
-      }
-    });
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) {
+      toast.error("Supabase client is unavailable.");
+      return;
+    }
 
     setIsSubmitting(true);
 
-    const response = await fetch("/api/admin/upload-track", {
-      method: "POST",
-      body: formData,
+    const uploadEntries = (Object.entries(files) as Array<[keyof UploadFileState, File | null]>).filter(
+      (entry): entry is [keyof UploadFileState, File] => Boolean(entry[1]),
+    );
+
+    const signResponse = await fetch("/api/admin/upload-track", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        title: title.trim(),
+        files: uploadEntries.map(([field, file]) => ({
+          field,
+          fileName: file.name,
+          contentType: file.type,
+          sizeBytes: file.size,
+        })),
+      }),
     });
 
-    const payload = (await response.json().catch(() => null)) as
+    const signPayload = (await signResponse.json().catch(() => null)) as
+      | {
+          ok?: boolean;
+          uploads?: Partial<Record<keyof UploadFileState, { path: string; token: string; publicUrl: string }>>;
+          error?: string;
+        }
+      | null;
+
+    if (!signResponse.ok || !signPayload?.uploads) {
+      const errorMessage = signPayload?.error ?? (await extractApiError(signResponse)) ?? "Could not prepare file upload.";
+      setIsSubmitting(false);
+      toast.error(errorMessage);
+      if (signResponse.status === 401 || signResponse.status === 403) {
+        router.push("/auth/sign-in");
+      }
+      return;
+    }
+
+    const uploadedPaths: Partial<Record<keyof UploadFileState, string>> = {};
+
+    for (const [field, file] of uploadEntries) {
+      const target = signPayload.uploads[field];
+      if (!target) {
+        setIsSubmitting(false);
+        toast.error(`Missing signed upload target for ${field}.`);
+        return;
+      }
+
+      const { error } = await supabase.storage
+        .from("track-files")
+        .uploadToSignedUrl(target.path, target.token, file, {
+          cacheControl: "3600",
+          upsert: false,
+          contentType: file.type || undefined,
+        });
+
+      if (error) {
+        setIsSubmitting(false);
+        toast.error(`${field} upload failed: ${error.message}`);
+        return;
+      }
+
+      uploadedPaths[field] = target.path;
+    }
+
+    const finalizeResponse = await fetch("/api/admin/upload-track", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        title: title.trim(),
+        producerId,
+        genre: genre.trim(),
+        bpm,
+        musicalKey: musicalKey.trim(),
+        mood: mood.trim(),
+        description: description.trim(),
+        price,
+        durationSeconds,
+        tags: tags.trim(),
+        exclusiveSale,
+        hasStems: selectedDeliverables.includes("Stems"),
+        hasMidi: selectedDeliverables.includes("MIDI"),
+        hasMaster: selectedDeliverables.includes("Master") || selectedDeliverables.includes("WAV"),
+        hasUnmastered: selectedDeliverables.includes("Unmastered"),
+        hasExtendedMix: selectedDeliverables.includes("Extended Mix"),
+        hasRadioEdit: selectedDeliverables.includes("Radio Edit"),
+        uploadedPaths,
+      }),
+    });
+
+    const payload = (await finalizeResponse.json().catch(() => null)) as
       | { ok?: boolean; slug?: string; warning?: string; error?: string }
       | null;
 
     setIsSubmitting(false);
 
-    if (!response.ok || !payload) {
-      toast.error(payload?.error ?? "Upload failed.");
-      if (response.status === 401 || response.status === 403) {
+    if (!finalizeResponse.ok || !payload) {
+      const errorMessage = payload?.error ?? (await extractApiError(finalizeResponse)) ?? "Upload failed.";
+      toast.error(errorMessage);
+      if (finalizeResponse.status === 401 || finalizeResponse.status === 403) {
         router.push("/auth/sign-in");
       }
       return;
