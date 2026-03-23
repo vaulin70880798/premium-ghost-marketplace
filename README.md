@@ -112,9 +112,24 @@ Mocked in MVP:
 ## Supabase setup
 1. Create Supabase project.
 2. Enable Email auth in Supabase Authentication.
-3. Enable Google provider in Supabase Authentication:
-   - Add Google OAuth client ID/secret in Supabase.
-   - Add redirect URL: `<your-site>/auth/callback`.
+3. Configure Google OAuth end-to-end:
+   - In Google Cloud Console:
+     - Create OAuth consent screen.
+     - Create OAuth Client ID (`Web application`).
+     - Authorized JavaScript origins:
+       - `http://localhost:3000`
+       - `https://<your-production-domain>`
+     - Authorized redirect URI:
+       - `https://<your-supabase-project-ref>.supabase.co/auth/v1/callback`
+   - In Supabase `Authentication -> Providers -> Google`:
+     - Paste Google client ID and client secret.
+     - Enable provider.
+   - In Supabase `Authentication -> URL Configuration`:
+     - Site URL:
+       - `http://localhost:3000` (local) or your production domain
+     - Additional redirect URLs:
+       - `http://localhost:3000/auth/callback`
+       - `https://<your-production-domain>/auth/callback`
 4. Run `supabase/schema.sql` in SQL editor.
 5. Fill `.env.local` from `.env.example`:
    - `NEXT_PUBLIC_SUPABASE_URL`

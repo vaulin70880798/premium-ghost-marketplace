@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Chrome } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useAppState } from "@/components/providers/app-provider";
@@ -50,11 +50,28 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: s
 
 export default function SignInPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { syncRoleFromProfile, activateDemoAdminSession, setRole } = useAppState();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
+  const shownOAuthError = useRef<string | null>(null);
+
+  useEffect(() => {
+    const oauthError = searchParams.get("oauth_error");
+    if (!oauthError) {
+      shownOAuthError.current = null;
+      return;
+    }
+
+    if (shownOAuthError.current === oauthError) {
+      return;
+    }
+
+    shownOAuthError.current = oauthError;
+    toast.error(oauthError);
+  }, [searchParams]);
 
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
