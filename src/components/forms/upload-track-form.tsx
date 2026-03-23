@@ -140,16 +140,39 @@ export function UploadTrackForm() {
   const hasRequiredFiles = Boolean(files.artworkFile && files.previewFile && files.packageZipFile);
 
   const submitDisabled = useMemo(() => {
-    return (
-      isSubmitting ||
-      !isWritable ||
-      producerSelectDisabled ||
-      !agreed ||
-      !hasRequiredFiles ||
-      !description.trim() ||
-      !title.trim()
-    );
-  }, [agreed, description, hasRequiredFiles, isSubmitting, isWritable, producerSelectDisabled, title]);
+    return isSubmitting || !isWritable || producerSelectDisabled;
+  }, [isSubmitting, isWritable, producerSelectDisabled]);
+
+  const submissionHint = useMemo(() => {
+    if (!isWritable) {
+      return "Upload is disabled until Supabase admin environment is configured.";
+    }
+
+    if (producerSelectDisabled) {
+      if (isLoadingProducers) {
+        return "Loading producers...";
+      }
+      return "No active producer is available. Add or restore a producer first.";
+    }
+
+    if (!title.trim()) {
+      return "Enter track title.";
+    }
+
+    if (!description.trim()) {
+      return "Add track description.";
+    }
+
+    if (!hasRequiredFiles) {
+      return "Artwork, preview, and package ZIP are required.";
+    }
+
+    if (!agreed) {
+      return "Accept upload and licensing terms to continue.";
+    }
+
+    return "Ready to upload.";
+  }, [agreed, description, hasRequiredFiles, isLoadingProducers, isWritable, producerSelectDisabled, title]);
 
   const toggleDeliverable = (item: string) => {
     setSelectedDeliverables((current) =>
@@ -264,6 +287,16 @@ export function UploadTrackForm() {
 
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    if (!title.trim()) {
+      toast.error("Track title is required.");
+      return;
+    }
+
+    if (!description.trim()) {
+      toast.error("Track description is required.");
+      return;
+    }
 
     if (!agreed) {
       toast.error("Please accept terms before submitting.");
@@ -616,7 +649,7 @@ export function UploadTrackForm() {
         <Button type="submit" disabled={submitDisabled}>
           {isSubmitting ? "Uploading..." : "Upload Track"}
         </Button>
-        <p className="text-xs text-zinc-500">Only admins can upload, deactivate, and restore team members.</p>
+        <p className="text-xs text-zinc-500">{submissionHint}</p>
       </div>
     </form>
   );
