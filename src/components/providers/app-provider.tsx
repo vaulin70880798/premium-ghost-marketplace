@@ -43,13 +43,49 @@ function hasDemoAdminCookieClient() {
   return document.cookie.split("; ").some((cookie) => cookie.startsWith(`${DEMO_ADMIN_SESSION_COOKIE}=1`));
 }
 
+function safeStorageGet(key: string) {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function safeStorageSet(key: string, value: string) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // ignore storage write failures
+  }
+}
+
+function safeStorageRemove(key: string) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // ignore storage remove failures
+  }
+}
+
 export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [favorites, setFavorites] = useState<string[]>(() => {
     if (typeof window === "undefined") {
       return [];
     }
 
-    const storedFavorites = window.localStorage.getItem(FAVORITES_KEY);
+    const storedFavorites = safeStorageGet(FAVORITES_KEY);
     if (!storedFavorites) {
       return [];
     }
@@ -67,13 +103,13 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       return "buyer";
     }
 
-    const hasLocalDemoSession = window.localStorage.getItem(DEMO_ADMIN_LOCAL_KEY) === "1";
+    const hasLocalDemoSession = safeStorageGet(DEMO_ADMIN_LOCAL_KEY) === "1";
     const hasCookieDemoSession = hasDemoAdminCookieClient();
     const hasDemoAdminSession = hasLocalDemoSession && hasCookieDemoSession;
-    const storedRole = window.localStorage.getItem(ROLE_KEY) as UserRole | null;
+    const storedRole = safeStorageGet(ROLE_KEY) as UserRole | null;
 
     if (hasLocalDemoSession && !hasCookieDemoSession) {
-      window.localStorage.removeItem(DEMO_ADMIN_LOCAL_KEY);
+      safeStorageRemove(DEMO_ADMIN_LOCAL_KEY);
     }
 
     if (!hasDemoAdminSession && storedRole === "admin") {
@@ -91,11 +127,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       return false;
     }
 
-    const hasLocalDemoSession = window.localStorage.getItem(DEMO_ADMIN_LOCAL_KEY) === "1";
+    const hasLocalDemoSession = safeStorageGet(DEMO_ADMIN_LOCAL_KEY) === "1";
     const hasCookieDemoSession = hasDemoAdminCookieClient();
 
     if (hasLocalDemoSession && !hasCookieDemoSession) {
-      window.localStorage.removeItem(DEMO_ADMIN_LOCAL_KEY);
+      safeStorageRemove(DEMO_ADMIN_LOCAL_KEY);
       return false;
     }
 
@@ -125,11 +161,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    window.localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites));
+    safeStorageSet(FAVORITES_KEY, JSON.stringify(favorites));
   }, [favorites]);
 
   useEffect(() => {
-    window.localStorage.setItem(ROLE_KEY, role);
+    safeStorageSet(ROLE_KEY, role);
   }, [role]);
 
   useEffect(() => {
@@ -159,7 +195,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
       if (session?.user) {
         setDemoAdminSession(false);
-        window.localStorage.removeItem(DEMO_ADMIN_LOCAL_KEY);
+        safeStorageRemove(DEMO_ADMIN_LOCAL_KEY);
         await loadRoleFromProfile(session.user.id);
         return;
       }
@@ -199,7 +235,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         await loadRoleFromProfile(authUser.id);
       },
       activateDemoAdminSession: () => {
-        window.localStorage.setItem(DEMO_ADMIN_LOCAL_KEY, "1");
+        safeStorageSet(DEMO_ADMIN_LOCAL_KEY, "1");
         setDemoAdminSession(true);
         setRole("admin");
         setAuthReady(true);
@@ -210,7 +246,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
           await supabase.auth.signOut();
         }
         await fetch("/api/auth/demo-admin-logout", { method: "POST" }).catch(() => undefined);
-        window.localStorage.removeItem(DEMO_ADMIN_LOCAL_KEY);
+        safeStorageRemove(DEMO_ADMIN_LOCAL_KEY);
         setDemoAdminSession(false);
         setAuthUser(null);
         setRole("buyer");

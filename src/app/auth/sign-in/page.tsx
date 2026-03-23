@@ -21,6 +21,33 @@ function parseRole(value: string | null | undefined): "buyer" | "producer" | "ad
   return "buyer";
 }
 
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    return await Promise.race<T>([
+      promise,
+      new Promise<T>((_resolve, reject) => {
+        timer = setTimeout(() => {
+          reject(new Error(message));
+        }, timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) {
+      clearTimeout(timer);
+    }
+  }
+}
+
 export default function SignInPage() {
   const router = useRouter();
   const { syncRoleFromProfile, activateDemoAdminSession, setRole } = useAppState();
@@ -31,104 +58,138 @@ export default function SignInPage() {
 
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (isSubmitting) {
+      return;
+    }
+
     setIsSubmitting(true);
 
-    const normalizedEmail = email.trim().toLowerCase();
-    const normalizedPassword = password.trim();
+    try {
+      const normalizedEmail = email.trim().toLowerCase();
+      const normalizedPassword = password.trim();
 
-    if (normalizedEmail === TEMP_ADMIN_EMAIL && normalizedPassword === TEMP_ADMIN_PASSWORD) {
-      const response = await fetch("/api/auth/demo-admin-login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: normalizedEmail,
-          password: normalizedPassword,
-        }),
-      });
+      if (normalizedEmail === TEMP_ADMIN_EMAIL && normalizedPassword === TEMP_ADMIN_PASSWORD) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 12_000);
 
-      if (!response.ok) {
-        setIsSubmitting(false);
-        toast.error("Temporary admin login failed.");
+        const response = await fetch("/api/auth/demo-admin-login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: normalizedEmail,
+            password: normalizedPassword,
+          }),
+          signal: controller.signal,
+        }).finally(() => clearTimeout(timer));
+
+        if (!response.ok) {
+          const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(payload?.error ?? "Temporary admin login failed.");
+        }
+
+        try {
+          activateDemoAdminSession();
+        } catch {
+          // The secure cookie is the source of truth; local storage failures should not block sign-in.
+        }
+
+        setRole("admin");
+        toast.success("Admin signed in");
+        router.push("/admin");
+        router.refresh();
         return;
       }
 
-      activateDemoAdminSession();
-      setIsSubmitting(false);
-      toast.success("Admin signed in");
-      router.push("/admin");
+      if (!hasSupabaseEnv()) {
+        throw new Error("Supabase is not configured for regular user login yet.");
+      }
+
+      const supabase = getSupabaseBrowserClient();
+      if (!supabase) {
+        throw new Error("Supabase client is unavailable.");
+      }
+
+      const { error, data } = await withTimeout(
+        supabase.auth.signInWithPassword({ email: normalizedEmail, password: normalizedPassword }),
+        15_000,
+        "Sign in timed out. Please check your connection and try again.",
+      );
+
+      if (error || !data.user) {
+        throw new Error(error?.message ?? "Unable to sign in.");
+      }
+
+      const profileResult = (await withTimeout(
+        Promise.resolve(supabase.from("profiles").select("role, is_active").eq("id", data.user.id).maybeSingle()),
+        10_000,
+        "Profile check timed out. Please try again.",
+      )) as {
+        data: { role: string | null; is_active: boolean | null } | null;
+        error: { message: string } | null;
+      };
+
+      const { data: profile, error: profileError } = profileResult;
+
+      if (profileError) {
+        throw new Error(profileError.message);
+      }
+
+      const role = parseRole(profile?.role);
+
+      if (profile?.is_active === false) {
+        await supabase.auth.signOut();
+        throw new Error("Account is inactive. Contact admin.");
+      }
+
+      setRole(role);
+      void syncRoleFromProfile();
+      toast.success("Signed in");
+      router.push(role === "admin" ? "/admin" : "/dashboard");
       router.refresh();
-      return;
-    }
-
-    if (!hasSupabaseEnv()) {
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Unable to sign in."));
+    } finally {
       setIsSubmitting(false);
-      toast.error("Supabase is not configured for regular user login yet.");
-      return;
     }
-
-    const supabase = getSupabaseBrowserClient();
-    if (!supabase) {
-      setIsSubmitting(false);
-      toast.error("Supabase client is unavailable.");
-      return;
-    }
-
-    const { error, data } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password: normalizedPassword });
-
-    if (error || !data.user) {
-      setIsSubmitting(false);
-      toast.error(error?.message ?? "Unable to sign in.");
-      return;
-    }
-
-    const { data: profile } = await supabase.from("profiles").select("role, is_active").eq("id", data.user.id).maybeSingle();
-    const role = parseRole(profile?.role);
-
-    if (profile?.is_active === false) {
-      await supabase.auth.signOut();
-      setIsSubmitting(false);
-      toast.error("Account is inactive. Contact admin.");
-      return;
-    }
-
-    setRole(role);
-    await syncRoleFromProfile();
-    setIsSubmitting(false);
-    toast.success("Signed in");
-    router.push(role === "admin" ? "/admin" : "/dashboard");
-    router.refresh();
   };
 
   const onGoogleSignIn = async () => {
-    if (!hasSupabaseEnv()) {
-      toast.info("Supabase is not configured yet. Running demo mode.");
-      router.push("/dashboard");
-      return;
-    }
+    try {
+      if (!hasSupabaseEnv()) {
+        toast.info("Supabase is not configured yet. Running demo mode.");
+        router.push("/dashboard");
+        return;
+      }
 
-    const supabase = getSupabaseBrowserClient();
-    if (!supabase) {
-      toast.error("Supabase client is unavailable.");
-      return;
-    }
+      const supabase = getSupabaseBrowserClient();
+      if (!supabase) {
+        throw new Error("Supabase client is unavailable.");
+      }
 
-    setIsGoogleSubmitting(true);
+      setIsGoogleSubmitting(true);
 
-    const redirectTo = `${window.location.origin}/auth/callback?next=/dashboard`;
+      const redirectTo = `${window.location.origin}/auth/callback?next=/dashboard`;
 
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo,
-      },
-    });
+      const { error } = await withTimeout(
+        supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo,
+          },
+        }),
+        15_000,
+        "Google sign-in timed out. Please try again.",
+      );
 
-    setIsGoogleSubmitting(false);
-
-    if (error) {
-      toast.error(error.message);
+      if (error) {
+        throw new Error(error.message);
+      }
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Google sign-in failed."));
+    } finally {
+      setIsGoogleSubmitting(false);
     }
   };
 
