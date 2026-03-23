@@ -137,7 +137,8 @@ export function UploadTrackForm() {
   }, [router]);
 
   const producerSelectDisabled = isLoadingProducers || producers.length === 0 || !isWritable;
-  const hasRequiredFiles = Boolean(files.artworkFile && files.previewFile && files.packageZipFile);
+  const hasRequiredCoreFiles = Boolean(files.artworkFile && files.previewFile);
+  const hasFullSongFile = Boolean(files.fullWavFile || files.fullMp3File);
 
   const submitDisabled = useMemo(() => {
     return isSubmitting || !isWritable || producerSelectDisabled;
@@ -163,8 +164,12 @@ export function UploadTrackForm() {
       return "Add track description.";
     }
 
-    if (!hasRequiredFiles) {
-      return "Artwork, preview, and package ZIP are required.";
+    if (!hasRequiredCoreFiles) {
+      return "Artwork and preview are required.";
+    }
+
+    if (!hasFullSongFile) {
+      return "Full song file is required (WAV or MP3).";
     }
 
     if (!agreed) {
@@ -172,7 +177,7 @@ export function UploadTrackForm() {
     }
 
     return "Ready to upload.";
-  }, [agreed, description, hasRequiredFiles, isLoadingProducers, isWritable, producerSelectDisabled, title]);
+  }, [agreed, description, hasFullSongFile, hasRequiredCoreFiles, isLoadingProducers, isWritable, producerSelectDisabled, title]);
 
   const toggleDeliverable = (item: string) => {
     setSelectedDeliverables((current) =>
@@ -303,8 +308,13 @@ export function UploadTrackForm() {
       return;
     }
 
-    if (!hasRequiredFiles) {
-      toast.error("Artwork, preview, and package ZIP are required.");
+    if (!hasRequiredCoreFiles) {
+      toast.error("Artwork and preview are required.");
+      return;
+    }
+
+    if (!hasFullSongFile) {
+      toast.error("Full song file is required (WAV or MP3).");
       return;
     }
 
@@ -580,6 +590,11 @@ export function UploadTrackForm() {
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="md:col-span-2 xl:col-span-3 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-xs text-zinc-700">
+          Required uploads: <span className="font-semibold">Artwork</span>, <span className="font-semibold">Preview</span>, and{" "}
+          <span className="font-semibold">Full Song (WAV or MP3)</span>. Package ZIP is optional.
+        </div>
+
         <UploadDropzone
           title="Artwork"
           required
@@ -600,8 +615,7 @@ export function UploadTrackForm() {
 
         <UploadDropzone
           title="Main Package ZIP"
-          required
-          hint="ZIP bundle with full delivery assets · up to 50MB"
+          hint="Optional bundle with delivery assets · up to 50MB"
           file={files.packageZipFile}
           accept=".zip"
           onFileChange={(file) => onFileChange("packageZipFile", file)}
@@ -609,7 +623,7 @@ export function UploadTrackForm() {
 
         <UploadDropzone
           title="Full WAV/AIFF"
-          hint="Optional full-quality master · up to 50MB"
+          hint="Required if Full MP3 is not provided · up to 50MB"
           file={files.fullWavFile}
           accept=".wav,.aif,.aiff"
           onFileChange={(file) => onFileChange("fullWavFile", file)}
@@ -617,7 +631,7 @@ export function UploadTrackForm() {
 
         <UploadDropzone
           title="Full MP3"
-          hint="Optional alternate full MP3 · up to 50MB"
+          hint="Required if Full WAV is not provided · up to 50MB"
           file={files.fullMp3File}
           accept=".mp3"
           onFileChange={(file) => onFileChange("fullMp3File", file)}

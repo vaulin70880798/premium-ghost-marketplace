@@ -57,7 +57,7 @@ const uploadRules: Record<UploadField, UploadRule> = {
   },
   packageZipFile: {
     label: "Package ZIP",
-    required: true,
+    required: false,
     maxBytes: MAX_ZIP_BYTES,
     folder: "package",
     allowedMime: ALLOWED_ZIP_MIME,
@@ -337,9 +337,10 @@ async function createTrackWithAssets(
   const artworkUpload = uploadedAssets.artworkFile;
   const previewUpload = uploadedAssets.previewFile;
   const packageUpload = uploadedAssets.packageZipFile;
+  const fullSongUpload = uploadedAssets.fullWavFile ?? uploadedAssets.fullMp3File;
 
-  if (!artworkUpload || !previewUpload || !packageUpload) {
-    return NextResponse.json({ error: "Artwork, preview, and package ZIP are required." }, { status: 400 });
+  if (!artworkUpload || !previewUpload || !fullSongUpload) {
+    return NextResponse.json({ error: "Artwork, preview, and full song file (WAV or MP3) are required." }, { status: 400 });
   }
 
   const slugBase = slugify(metadata.title) || "track";
@@ -359,7 +360,7 @@ async function createTrackWithAssets(
       price: metadata.price,
       artwork_url: artworkUpload.publicUrl,
       preview_url: previewUpload.publicUrl,
-      package_url: packageUpload.publicUrl,
+      package_url: packageUpload?.publicUrl ?? null,
       has_stems: metadata.hasStems,
       has_midi: metadata.hasMidi || Boolean(uploadedAssets.midiFile),
       has_master: metadata.hasMaster || Boolean(uploadedAssets.fullWavFile || uploadedAssets.fullMp3File),
@@ -381,7 +382,7 @@ async function createTrackWithAssets(
   const trackFilesPayload = [
     { track_id: createdTrack.id, file_type: "Artwork", included: true, storage_path: artworkUpload.path },
     { track_id: createdTrack.id, file_type: "Preview", included: true, storage_path: previewUpload.path },
-    { track_id: createdTrack.id, file_type: "Package ZIP", included: true, storage_path: packageUpload.path },
+    packageUpload ? { track_id: createdTrack.id, file_type: "Package ZIP", included: true, storage_path: packageUpload.path } : null,
     uploadedAssets.fullWavFile ? { track_id: createdTrack.id, file_type: "Full WAV", included: true, storage_path: uploadedAssets.fullWavFile.path } : null,
     uploadedAssets.fullMp3File ? { track_id: createdTrack.id, file_type: "Full MP3", included: true, storage_path: uploadedAssets.fullMp3File.path } : null,
     uploadedAssets.stemsZipFile ? { track_id: createdTrack.id, file_type: "Stems ZIP", included: true, storage_path: uploadedAssets.stemsZipFile.path } : null,
@@ -408,7 +409,7 @@ async function createTrackWithAssets(
     files: {
       artwork: artworkUpload.publicUrl,
       preview: previewUpload.publicUrl,
-      package: packageUpload.publicUrl,
+      package: packageUpload?.publicUrl ?? null,
     },
   });
 }
@@ -503,8 +504,12 @@ export async function POST(request: Request) {
   }
 
   const uploadedPaths = body.uploadedPaths ?? {};
-  if (!uploadedPaths.artworkFile || !uploadedPaths.previewFile || !uploadedPaths.packageZipFile) {
-    return NextResponse.json({ error: "Artwork, preview, and package ZIP uploads are required." }, { status: 400 });
+  const hasFullSongUpload = Boolean(uploadedPaths.fullWavFile || uploadedPaths.fullMp3File);
+  if (!uploadedPaths.artworkFile || !uploadedPaths.previewFile || !hasFullSongUpload) {
+    return NextResponse.json(
+      { error: "Artwork, preview, and full song upload (WAV or MP3) are required." },
+      { status: 400 },
+    );
   }
 
   const adminClient = createSupabaseAdminClient();
